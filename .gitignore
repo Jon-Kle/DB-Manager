@@ -3,5 +3,4 @@
 *.pyc
 *.xlsx
 requests/
-rsc/
 versions/
