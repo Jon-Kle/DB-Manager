@@ -5,3 +5,4 @@
 requests/
 versions/
 .vscode/
+src/.cmd_history
