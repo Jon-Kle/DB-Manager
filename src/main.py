@@ -738,7 +738,7 @@ class CLI(cmd.Cmd):
 			start_req_timer = False
 		else:
 			# msg in chat that all is well
-			s += ' established\n\n'
+			s += ' successful\n\n'
 
 		# api2 (not used)
 		global api2
@@ -758,7 +758,7 @@ class CLI(cmd.Cmd):
 			start_req_timer = False
 		else:
 			# msg in chat that all is well
-			s += ' established\n\n'
+			s += ' successful\n\n'
 
 		# database
 		global db
@@ -776,7 +776,8 @@ class CLI(cmd.Cmd):
 				s += ' Writing to the database raised an error:\n'
 				s += str(e) + '\n\n'
 			elif isinstance(e, DBTimeoutError):
-				pass !!!!!
+				s += "  The Database didn't respond.\n"
+				s += '  Maybe the Docker container is paused.\n\n'
 			start_req_timer = False
 		else:
 			# msg in chat that all is well
@@ -785,6 +786,10 @@ class CLI(cmd.Cmd):
 		if start_req_timer:
 			req_timer.start()
 			# msg in chat
+			s += '  Everything is ok:\n'
+			s += '   Request timer started.\n\n'
+		else:
+			s += "  Request timer didn't start!\n\n"
 
 		s += 'Use "help" for a list of commands'
 		print(s)
