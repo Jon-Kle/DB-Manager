@@ -1,4 +1,3 @@
-from urllib3 import Timeout
 from customExceptions import *
 import sys, os, time  # System
 # For names of request files and RequestTimer
@@ -186,6 +185,19 @@ class Database:
 		# finishes the timer before the function is executed, a timeout error is raised
 		self.con = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 		self.cursor = self.con.cursor()
+
+	def ping(self, reconnect=False):
+		if not self.con:
+			self.connect()
+		# add timeout
+		def ping():
+			try:
+				self.con.ping(reconnect=reconnect)
+				return True, None
+			except pymysql.err.OperationalError as e:
+				return None, DBConnectionError(e)
+		timeout = TimeoutHelper(ping)
+		timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
 	def add_row(self, values):
 		'''Add a row to the db with the values from "values"'''
@@ -586,14 +598,46 @@ class RequestTimer:
 		if time == None:
 			time = self.next_req.isoformat(sep=' ')
 
-		# get Values
-		values = api1.get_values(time)
-		# add row to db
-		db.add_row(values)
+		try:
+			db.ping(reconnect=True)
+		except DBConnectionError:
+			pass
+		except DBTimeoutError:
+			pass
 
-		# message
-		if self.show_msg and msg:
-			self.line_msg(time, values, debug=debug)
+		try:
+			# get Values
+			values = api1.get_values(time)
+		except BaseException as e:
+			if isinstance(e, ApiConnectionError):
+				print(f'--> {time} - Connection with Api1 failed!')
+			elif isinstance(e, DataIncompleteError):
+				print(f'--> {time} - Data of request is incomplete!')
+				print(' missing Data:')
+				s = cli.print_iterable(e.missing, indent=' - ')
+				print(s)
+			elif isinstance(e, WStOfflineError):
+				print(f'--> {time} - Data of request is outdated!')
+			elif isinstance(e, ApiTimeoutError):
+				print(f'--> {time} - The request timed out!')
+			else: raise e
+		else:
+			try:
+				# add row to db
+				db.add_row(values) # try
+			except BaseException as e:
+				if isinstance(e, DBConnectionError):
+					print(f'--> {time} - Connection with db failed!')
+				elif isinstance(e, DBWritingError):
+					print(f'--> {time} - Writing to db failed!')
+				elif isinstance(e, DBTimeoutError):
+					print(f"--> {time} - The db didn't respond!")
+				else: raise e
+			else:
+				# message
+				if self.show_msg and msg:
+					self.line_msg(time, values, debug=debug)
+
 
 	def get_now(self, string=False):
 		now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DTS
@@ -732,7 +776,7 @@ class CLI(cmd.Cmd):
 			elif isinstance(e, DataIncompleteError):
 				s += '  Some data values are missing:\n'
 				s += self.print_iterable(e.missing, indent='  - ')
-				s += '\n  Make sure, the wires to the different sensors are properly connected!\n\n'
+				s += '  Make sure, the wires to the different sensors are properly connected!\n\n'
 			elif isinstance(e, WStOfflineError):
 				s += '  The data is outdated!\n'
 				s += '  Make sure, the weather-station is connected to the internet!\n\n'
@@ -992,6 +1036,8 @@ class CLI(cmd.Cmd):
 		elif arg == 'rm':
 			db.rm_last()
 			print('--> line removed!')
+		elif arg == 'ping':
+			print(db.con.ping())
 
 	def do_restart(self, arg):
 		'''Restart program and keep the cmd history.'''
