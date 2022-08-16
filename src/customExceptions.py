@@ -34,6 +34,7 @@ class ApiTimeoutError(Exception):
 class TimeoutHelper(Thread):
     def __init__(self, func):
         Thread.__init__(self)
+        self.daemon=True
         self.func = func
         self.r = None # values that are returned from func
         self.e = None # errors from func
