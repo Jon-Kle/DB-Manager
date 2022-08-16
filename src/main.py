@@ -149,6 +149,8 @@ class Database:
 
 	def __init__(self):
 		self.config = config.data['dbLogin']
+
+	def check(self):
 		self.connect()
 		self.add_row(
 			['2022-08-13 13:25:00',
@@ -182,7 +184,7 @@ class Database:
 		timeout = TimeoutHelper(con)
 		# this starts the thread with con() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
-		self.con = timeout.timer(self.config['timeoutms'], DBTimeoutError)
+		self.con = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 		self.cursor = self.con.cursor()
 
 	def add_row(self, values):
@@ -200,7 +202,7 @@ class Database:
 		timeout = TimeoutHelper(exec)
 		# this starts the thread with con() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
-		timeout.timer(self.config['timeoutms'], DBTimeoutError)
+		timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
 	def rm_last(self):
 		'''Remove last row in the "weatherdata" table'''
@@ -215,7 +217,7 @@ class Database:
 		timeout = TimeoutHelper(exec)
 		# this starts the thread with con() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
-		timeout.timer(self.config['timeoutms'], DBTimeoutError)
+		timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
 class Api1:
 	'''
@@ -263,6 +265,7 @@ class Api1:
 		self.password = self.config['pass']
 		self.token = self.config['apiToken']
 
+	def check(self):
 		# check for functionality
 		self.get_values()
 
@@ -284,7 +287,7 @@ class Api1:
 		timeout = TimeoutHelper(req)
 		# this starts the thread with req() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
-		r = timeout.timer(self.config['timeoutms'], ApiTimeoutError)
+		r = timeout.timer(self.config['timeoutMs'], ApiTimeoutError)
 
 		return r.json()  # parses dict of json response
 
@@ -307,7 +310,7 @@ class Api1:
 		datet = datet.replace(hour=datet.hour-1, tzinfo=None)
 		now = req_timer.get_now()
 		deltat = now - datet
-		if deltat > timedelta(minutes=1):
+		if deltat > timedelta(minutes= self.config['dataMaxAge']):
 			raise WStOfflineError(datet)
 
 		vlist = {}
@@ -428,7 +431,9 @@ class Api2:
 		self.key = self.config['api-key']
 		self.secret = self.config['api-secret']
 		self.station_id = self.config['stationID']
-
+	
+	def check(self):
+		# check for functionality
 		self.request()
 
 	def request(self):
@@ -455,7 +460,7 @@ class Api2:
 		timeout = TimeoutHelper(req)
 		# this starts the thread with req() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
-		r = timeout.timer(self.config['timeoutms'], ApiTimeoutError)
+		r = timeout.timer(self.config['timeoutMs'], ApiTimeoutError)
 
 		return r.json()  # parses dict of json response
 
@@ -482,7 +487,7 @@ class Api2:
 		timeout = TimeoutHelper(req)
 		# this starts the thread with req() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
-		r = timeout.timer(self.config['timeoutms'], ApiTimeoutError)
+		r = timeout.timer(self.config['timeoutMs'], ApiTimeoutError)
 
 		st = r.json()
 		st_compact = []
@@ -541,8 +546,6 @@ class RequestTimer:
 		# configuration
 		self.config = config.data['requestTimer']
 		self.show_msg = self.config['show_message']
-		# if self.config['timer_at_startup']:
-		# 	self.start()
 
 	def start(self):
 		'''Initiate thread with timer().'''
@@ -715,9 +718,10 @@ class CLI(cmd.Cmd):
 
 		# api1
 		global api1
+		api1 = Api1()
 		s += ' API1 request:'
 		try:
-			api1 = Api1()
+			api1.check()
 		except BaseException as e:
 			# msg in chat
 			s += ' failed!\n'
@@ -735,6 +739,8 @@ class CLI(cmd.Cmd):
 			elif isinstance(e, ApiTimeoutError):
 				s += '  The Api1 request timed out!\n'
 				s += '  Make sure the connection to the internet is good.\n\n'
+			else:
+				raise e
 			start_req_timer = False
 		else:
 			# msg in chat that all is well
@@ -755,6 +761,8 @@ class CLI(cmd.Cmd):
 			elif isinstance(e, ApiTimeoutError):
 				s += '  The Api2 request timed out!\n'
 				s += '  Make sure the connection to the internet is good.\n\n'
+			else:
+				raise e
 			start_req_timer = False
 		else:
 			# msg in chat that all is well
@@ -762,9 +770,10 @@ class CLI(cmd.Cmd):
 
 		# database
 		global db
+		db = Database()
 		s += ' Connection with database:'
 		try:
-			db = Database()
+			db.check()
 		except BaseException as e:
 			# msg in chat
 			s += ' failed!\n'
@@ -778,6 +787,8 @@ class CLI(cmd.Cmd):
 			elif isinstance(e, DBTimeoutError):
 				s += "  The Database didn't respond.\n"
 				s += '  Maybe the Docker container is paused.\n\n'
+			else:
+				raise e
 			start_req_timer = False
 		else:
 			# msg in chat that all is well
@@ -980,6 +991,7 @@ class CLI(cmd.Cmd):
 			req_timer.make_req(time, debug=True)
 		elif arg == 'rm':
 			db.rm_last()
+			print('--> line removed!')
 
 	def do_restart(self, arg):
 		'''Restart program and keep the cmd history.'''
