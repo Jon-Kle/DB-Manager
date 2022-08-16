@@ -5,7 +5,7 @@
 		"user": "",
 		"password": "",
 		"database": "my-db",
-		"timeoutms": 5000
+		"timeoutMs": 5000
 	},
 	"weatherlinkApi": {
 		"url": "https://api.weatherlink.com/v1/NoaaExt.json",
@@ -15,14 +15,15 @@
 		"userDemo": "001D0A00DE6A",
 		"passDemo": "DEMO",
 		"apiTokenDemo": "demo0a002bc5272033001d0a002bc527",
-		"timeoutms": 5000
+		"timeoutMs": 5000,
+		"dataMaxAge": 2
 	},
 	"weatherlinkApi2": {
 		"url": "https://api.weatherlink.com/v2/",
 		"api-key": "",
 		"api-secret": "",
 		"stationID": "",
-		"timeoutms": 5000
+		"timeoutMs": 5000
 	},
 	"requestTimer": {
 		"timer_at_startup": true,
