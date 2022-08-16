@@ -1,13 +1,12 @@
 from customExceptions import *
-import sys, os, time  # System
-# For names of request files and RequestTimer
-from datetime import datetime, timedelta, tzinfo
+import sys, os, time # System
+from datetime import datetime, timedelta # for names of request files and RequestTimer
 import email.utils # for conversion of rfc822 to datetime
-from threading import Thread  # For RequestTimer
-import hmac  # Hash function for WeatherLink-API
-import pymysql, requests, json#, eventlet  # APIs and database
-import cmd, readline  # Command line
-import csv  # Read download-files
+from threading import Thread # For RequestTimer
+import hmac # Hash function for WeatherLink-API
+import pymysql, requests, json # APIs and database
+import cmd, readline # Command line
+import csv # Read download-files
 
 class Configuration:
 	'''
@@ -37,75 +36,6 @@ class Configuration:
 		configfile = open('../rsc/config.json', 'w')
 		json.dump(self.data, configfile, indent='\t')
 		configfile.close()
-			
-	# def database_msg(self, prev_text='', optn=None):
-	# 	s = prev_text
-
-	# 	if not optn:
-	# 		s += ' Connection with database:'
-	# 		if not self.database_check:
-	# 			s += f' failed!\n  {sc.database["error"]}\n'\
-	# 			f'{cli.print_iterable(config.data["dbLogin"], indent="   ")}'\
-	# 			'  Database may not be active or the login data is incorrect!\n'\
-	# 			'  Use "config dbLogin" to change login data and reconnect\n'
-	# 		else:
-	# 			s += ' established\n'
-	# 		return s
-
-	# def api1_msg(self, prev_text='', optn=None):
-	# 	s = prev_text
-
-	# 	if not optn:
-	# 		s += ' API1 Connection:'
-	# 		if not self.api1_check:
-	# 			s += ' failed!\n'
-	# 			s += '  Make sure, the connection to the internet is working!\n'
-	# 			s += '  It could also be that the API is offline.\n'
-	# 			return s
-	# 		s += ' established\n'
-	# 		s += f'  Size of response: {self.api1["resp_size"]} bytes\n'
-	# 		return s
-
-	# def api2_msg(self, prev_text='', optn=None):
-	# 	s = prev_text
-
-	# 	if not optn:
-	# 		if not self.api1_check:
-	# 			return s
-	# 		s += ' API2 Connection:'
-	# 		if self.api1_check:
-	# 			s += ' established'
-	# 		else:
-	# 			s += ' failed'
-	# 		s += ' (not used)\n\n'
-	# 		return s
-
-	# def requestTimer_msg(self, prev_text='', optn=None):
-	# 	s = prev_text
-
-	# 	if not optn:
-	# 		if not self.requestTimer['values']:
-	# 			s += ' Values could not be extracted from API1 response!\n\n'
-	# 			return s
-
-	# 		v = self.requestTimer['values']
-
-	# 		s += ' Values extracted:\n'
-	# 		s += '  temp | pressure | hum | windspeed | winddir | rainrate | uvindex\n'
-	# 		s += f'  {v[1]} | {v[2]}   | {v[3]}  | {v[4]}       | {v[5]}     | {v[6]}      | {v[7]}\n'
-	# 		s += '\n'
-
-	# 		s += ' Writing to the database:'
-	# 		if not self.requestTimer['writing_to_db']:
-	# 			s += ' failed!\n\n'
-	# 			return s
-	# 		s += ' successful\n\n'
-
-	# 		if self.requestTimer['timer_counting']:
-	# 			s += ' Request timer: started\n'
-	# 			s += f'  next request in {self.requestTimer["timer_counting"]} seconds\n'
-				
-	# 	return s
 
 class Database:
 	'''
@@ -118,53 +48,49 @@ class Database:
 	con : pymysql.connection
 			connection object of pymysql
 			This is None, if the connection is not established.
-	est : bool
-			indicates if connection is successfully made
-	error : pymysql.err.OperationalError
-			the error that occurs when the connection does not work 
-			If there is no error, it is None.
 	cursor : pymysql.cursors.DictCursor
 			cursor object for database
-	row_count : int
-			number of rows in the db
 
 	Methods
 	-------
-	connect():
-			Tries to establish the connection with the db
-	ping():
-			Checks the connection with a ping and changes the attributes accordingly.
-	get_gaps():  * * * under construction * * *
-			Reads the content of the db and finds the gaps, where data is missing.
-	add_row(values):
-			Adds a line at the end of the db with the data from "values".
-	insert_row()  * * * under construction * * *
-			Not yet implemented, but should add a row and then sort the lines (for filling gaps).
-	rm_last():
-			Removes the last entry.
 	check():
-			Returns variables for SystemCheck
+			calls connect() and checks if writing to the db is possible
+	connect():
+			tries to establish the connection with the db
+	ping():
+			checks the connection with a ping and reconnects if necessary
+	add_row(values):
+			adds a line at the end of the db with the data from "values"
+	rm_last():
+			removes the last entry
+	check_writing_to_db():
+			Writes and deleted one line to the database 
+			to check if writing to the db is possible.
 	'''
 
 	def __init__(self):
 		self.config = config.data['dbLogin']
 
 	def check(self):
+		'''
+		Establish a connection and check if writing works.
+		
+				Exceptions:
+						DBConnectionError
+						DBWritingError
+						DBTimeoutError
+		'''
 		self.connect()
-		self.add_row(
-			['2022-08-13 13:25:00',
-			'26.9',
-			'1014.7',
-			'39',
-			'1.60934',
-			'SO',
-			'0.0',
-			'2.2']
-			)
-		self.rm_last()
+		self.check_writing_to_db()
 
 	def connect(self):
-		'''Try to connect with the mysql database.'''
+		'''
+		Try to connect with the mysql database.
+		
+				Exceptions:
+					DBConnectionError
+					DBTimeoutError
+		'''
 		self.con = None
 		self.cursor = None
 		# this function gets executed in another thread
@@ -186,13 +112,20 @@ class Database:
 		self.con = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 		self.cursor = self.con.cursor()
 
-	def ping(self, reconnect=False):
+	def ping(self):
+		'''
+		Check the connection and (re-)connect if necessary.
+
+				Exceptions:
+					DBConnectionError
+					DBTimeoutError
+		'''
 		if not self.con:
 			self.connect()
 		# add timeout
 		def ping():
 			try:
-				self.con.ping(reconnect=reconnect)
+				self.con.ping(reconnect=True)
 				return True, None
 			except pymysql.err.OperationalError as e:
 				return None, DBConnectionError(e)
@@ -200,7 +133,16 @@ class Database:
 		timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
 	def add_row(self, values):
-		'''Add a row to the db with the values from "values"'''
+		'''
+		Add a row to the db with the values from "values".
+
+				Parameters:
+						values (list) : Values that get written into the db
+
+				Exceptions:
+						DBWritingError
+						DBTimeoutError
+		'''
 		queryString = f"INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
  VALUES ('{values[0]}', '{values[1]}', '{values[2]}', '{values[3]}', '{values[4]}', '{values[5]}', '{values[6]}', '{values[7]}');"
 		# this function gets executed in another thread
@@ -217,7 +159,13 @@ class Database:
 		timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
 	def rm_last(self):
-		'''Remove last row in the "weatherdata" table'''
+		'''
+		Remove last row in the "weatherdata" table.
+
+				Exceptions:
+						DBWritingError
+						DBTimeoutError
+		'''
 		def exec():
 			try:
 				self.cursor.execute(
@@ -229,6 +177,26 @@ class Database:
 		timeout = TimeoutHelper(exec)
 		# this starts the thread with con() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
+		timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+
+	def check_writing_to_db(self):
+		'''
+		Check if writing to the db is possible by adding and removing one line to the db.
+
+			Exceptions:
+					DBWritingError
+					DBTimeoutError
+		'''
+		def exec():
+			try:
+				self.cursor.execute(f"INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+ VALUES ('0000-01-01 00:00:00', '26.9', '1014.7', '39', '1.60934', 'SO', '0.0', '2.2');")
+				self.cursor.execute("DELETE FROM `weatherdata` WHERE -1 ORDER BY entryDate DESC LIMIT 1;")
+				self.cursor.commit()
+				return True, None
+			except pymysql.Error as e:
+				return None, DBWritingError(e)
+		timeout = TimeoutHelper(exec)
 		timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
 class Api1:
@@ -253,21 +221,16 @@ class Api1:
 	token : str
 			unique API-Token. Dont share with anyone!
 			If compromised generate a new one at https://www.weatherlink.com/account
-	 --- SystemCheck ---
-	con : bool
-			true if request did not throw an exception
-	data_parsed : bool
-			true if parsing the response to dict did not throw an exception
-	resp_size
-			the size of the response object in bytes
 
 	Methods
 	-------
+	check():
+			Check if connection works and if the data is complete and up to date.
 	request():
 			Makes an HTTP request with the given values. 
-			Returns the answer in json format as dict
-	check():
-			Returns variables for SystemCheck
+			Returns the answer in json format as a dict.
+	get_values():
+			Extracts the Values for the db from a request and returns them.
 	'''
 
 	def __init__(self):
@@ -278,11 +241,25 @@ class Api1:
 		self.token = self.config['apiToken']
 
 	def check(self):
-		# check for functionality
+		'''
+		Check if the connection works, the data complete and is up to date.
+		
+				Exceptions:
+						ApiConnectionError
+						DataIncompleteError
+						WStOfflineError
+						ApiTimeoutError
+		'''
 		self.get_values()
 
 	def request(self):
-		'''Return response from the Api as a dict.'''
+		'''
+		Return response from the Api as a dict.
+		
+				Exceptions:
+						ApiConnectionError
+						ApiTimeoutError
+		'''
 		ans = None
 		payload = {
 			'user': self.user,
@@ -306,10 +283,14 @@ class Api1:
 	def get_values(self, time=None):
 		'''Make API1 Request and get selected values to form a list.
 
-		Parameters
-		----------
-		time : str
-				overwrites the entryDate value in vlist
+				Parameters:
+						time (str) : overwrites the entryDate value in vlist
+
+				Exceptions:
+						ApiConnectionError
+						DataIncompleteError
+						WStOfflineError
+						ApiTimeoutError
 		'''
 		if not time:
 			time = req_timer.get_now(string=True)
@@ -399,7 +380,7 @@ class Api1:
 
 class Api2:
 	'''
-	A class to represent the API V2
+	A class to represent the API V2 (Not actively used!)
 
 	This API is more complex than the API V1.
 	It is more sophisticated and uses an HMAC algorithm with sha256 for more security
@@ -419,22 +400,15 @@ class Api2:
 			If compromised generate a new one at https://www.weatherlink.com/account
 	station_id : str
 			ID which identifies the weather station the data is requested from
-	 --- SystemCheck ---
-	con : bool
-			true if request did not throw an exception
-	data_parsed : bool
-			true if parsing the response to dict did not throw an exception
-	resp_size
-			the size of the response object in bytes
 
 	Methods
 	-------
+	check():
+			Checks the connection with the Api
 	request():
 			Makes an HTTP request with the values and the calculated signature.
 	get_stations():
 			Makes an HTTP request to get all the possible station IDs and returns the answer in a compact format.
-	check():
-			Returns variables for SystemCheck
 	'''
 
 	def __init__(self):
@@ -445,15 +419,27 @@ class Api2:
 		self.station_id = self.config['stationID']
 	
 	def check(self):
-		# check for functionality
+		'''
+		Check the connection with the Api.
+
+				Exceptions:
+						ApiConnectionError
+						ApiTimeoutError
+		'''
 		self.request()
 
 	def request(self):
-		'''Return dict from Api2 http request.'''
+		'''
+		Return dict from Api2 http request.
+
+				Exceptions:
+						ApiConnectionError
+						ApiTimeoutError
+		'''
 		t = int(time.time())
-		paramstr = f'api-key{self.key}station-id{self.station_id}t{t}'
+		param_str = f'api-key{self.key}station-id{self.station_id}t{t}'
 		hmac_obj = hmac.new(str.encode(self.secret),
-							str.encode(paramstr), 'sha256')
+							str.encode(param_str), 'sha256')
 		api_signature = hmac_obj.hexdigest()
 
 		payload = {
@@ -477,11 +463,17 @@ class Api2:
 		return r.json()  # parses dict of json response
 
 	def get_stations(self):
-		'''Return IDs and names from weatherlink Stations as dict'''
+		'''
+		Return IDs and names from weatherlink Stations as dict
+		
+				Exceptions:
+						ApiConnectionError
+						ApiTimeoutError
+		'''
 		t = int(time.time())
-		paramstr = f'api-key{self.key}t{t}'
+		param_str = f'api-key{self.key}t{t}'
 		hmac_obj = hmac.new(str.encode(self.secret),
-							str.encode(paramstr), 'sha256')
+							str.encode(param_str), 'sha256')
 		api_signature = hmac_obj.hexdigest()
 
 		payload = {
@@ -510,7 +502,8 @@ class Api2:
 		return st_compact  # return stations as dict
 
 class RequestTimer:
-	'''A class that periodically loads data into the database
+	'''
+	A class that periodically loads data into the database
 
 	Attributes
 	----------
@@ -518,40 +511,29 @@ class RequestTimer:
 			configuration data for requestTimer
 	show_msg : bool
 			determines if a message is shown when a line is added to the database
-	run : bool
-			defaults to true. Is used to stop the timer thread
-	timer_count : int
-			synchronized with the counting variable in timer()
-	values : list
-			list of values returned by get_values()
 	next_req : datetime
 			time when the next line will be added to the database
 	seconds_till_next : int
-			number of seconds till next_req. Used by timer()
+			seconds till the next requests gets triggered
 	thread : Thread
 			thread for the timer
-	row_dif : bool
-			is true, if the count of affected rows in the db changes
-			checked make_req()
+	run : bool
+			indicates when the timer is running
 
 	Methods
 	-------
 	start():
 			Creates thread for the timer and starts it.
 	timer():
-			Counts down seconds_till_next and calls make_req().
+			Counts seconds_till_next and calls make_req().
 	make_req(time=None):
 			Makes request and adds row to the database.
 	get_now():
 			returns datetime object of CET timezone
 	get_next_req_time():
 			Calculates next_req.
-	get_values(time):
-			Makes API1 request and creates list with selected values.
 	line_msg(time, vlist):
 			Builds message for when a line is added to the database
-	check():
-			Returns variables for SystemCheck
 	'''
 
 	def __init__(self):
@@ -568,7 +550,7 @@ class RequestTimer:
 		self.thread.start()
 
 	def timer(self):
-		'''Times requests.'''
+		'''Time requests.'''
 		i = self.seconds_till_next + 1
 		self.run = True
 		while self.run:
@@ -583,23 +565,22 @@ class RequestTimer:
 				i = self.seconds_till_next + 1
 
 	def make_req(self, time=None, msg=True, debug=False):
-		'''Get values from get_values() and add them to the database.
+		'''
+		Get values from get_values() and add them to the database.
 
 		Trigger message if show_msg is true.
 		Calculate next_req and seconds_till_next
 
-		Parameters
-		----------
-		time : str
-				determines the date value in vlist
-		debug : bool
-				gets passed on to line_msg()
+				Parameters:
+						time (str) : overwrites the time value for the new line
+						msg (bool) : determines if a message for the added line gets shown
+						debug (bool) : gets passed on to line_msg()
 		'''
 		if time == None:
 			time = self.next_req.isoformat(sep=' ')
 
 		try:
-			db.ping(reconnect=True)
+			db.ping()
 		except DBConnectionError:
 			pass
 		except DBTimeoutError:
@@ -638,8 +619,8 @@ class RequestTimer:
 				if self.show_msg and msg:
 					self.line_msg(time, values, debug=debug)
 
-
 	def get_now(self, string=False):
+		'''Return a naive datetime object of the CET zone'''
 		now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DTS
 		now = now.replace(microsecond=0)
 		if string:
@@ -663,24 +644,16 @@ class RequestTimer:
 	def line_msg(self, time, values, debug=False):
 		'''Build message for when a new line is added to the database.
 
-		Parameters
-		----------
-		time : str
-				sting that shows when the request was made
-		vlist : list
-				list with values from the request
-		row_d : int
-				difference in rows of the db before and after the new row was added
-		debug : bool
-				determines weather or not the cli prompt is printed and if new lines are added or not
+				Parameters:
+						time (str) : string that shows when the request was made
+						vlist (list) : list with values from the request
+						debug (bool) : changes the look of the message
 		'''
 		if debug:
 			msg = ''
 		else:
 			msg = '\n'
-		# entry time
 		msg += f'--> {time} - '
-		# list of values
 		for i, item in enumerate(values):
 			if i > 0:
 				msg += item
@@ -701,54 +674,35 @@ class CLI(cmd.Cmd):
 	----------
 	prompt : str
 			shown in front of every new prompt
-	intro : str
-			intro message built by preloop()
 
 	Methods
 	-------
-	connection_msg():
-			Returns message string which shows if the database is successfully connected or not.
-	ping_msg():
-			Returns message string which shows if database is already connected, reconnected or not connected.
 	preeloop():
 			Runs before cmdloop() starts. Shows if all parts of the program work.
-	default(line):
+	default():
 			Gets executed if command is unknown.
 	emptyline():
-			Gets executed if empty command is entered.
+			Gets executed if empty command ('') is entered.
 	 --- string utilities ---
-	print_iterable(i):
+	print_iterable():
 			Returns string of iterable object i depending on the type.
-	check_time_syntax(s):
-			Returns True or False depending on whether the syntax for a requestTimes entry is correct.
-			(This function is obsolete, because the RequestTimer class does not use it.)
 	 --- commands ---
-	do_reconnect(arg):
-			Try to reconnect with the database.
-	do_request(arg):
-			Save answer of API1 or API2 request as .json file in "requests".
-	do_loadDownloadFiles(arg):
+	do_request():
+			Saves answer of API1 or API2 request as .json file in "requests/".
+	do_timer():
+			Starts or stops the request timer.
+	do_loadDownloadFiles():
 			• • • under construction • • •
-	do_config(arg):
+	do_config():
 			View and change configuration.
-	do_debug(arg):
+	do_debug():
 			Provides different debug functionalities.
-	do_restart(arg):
+	do_restart():
 			Restart program and keep the cmd history.
-	do_quit(arg):
+	do_quit():
 			Exit program.
 	'''
 	prompt = '---(DB-Manager)> '
-
-	def ping_msg(self):
-		'''Build message depending on wether the connection is already established,
-		established or not established.'''
-		if db.est:
-			s = 'connection is already established!'
-		else:
-			s = 'connection lost!\n\n'
-			s += self.connection_msg()
-		return s
 
 	def preloop(self):
 		'''Check if different parts of the program are working and build intro message.'''
@@ -779,6 +733,7 @@ class CLI(cmd.Cmd):
 				s += '  Make sure, the wires to the different sensors are properly connected!\n\n'
 			elif isinstance(e, WStOfflineError):
 				s += '  The data is outdated!\n'
+				s += f'  - {e.last_online.isoformat(sep=" ")}\n'
 				s += '  Make sure, the weather-station is connected to the internet!\n\n'
 			elif isinstance(e, ApiTimeoutError):
 				s += '  The Api1 request timed out!\n'
@@ -849,7 +804,7 @@ class CLI(cmd.Cmd):
 		s += 'Use "help" for a list of commands'
 		print(s)
 
-	def default(self, line):
+	def default(self):
 		'''Show message and help function if command is unknown.'''
 		print('This command doesn\'t exist!')
 		self.onecmd('help')
@@ -876,22 +831,6 @@ class CLI(cmd.Cmd):
 				s += f'{indent}{item[0]}: {item[1]}\n'
 		return s
 
-	def check_time_syntax(self, s):
-		'Check the syntax of a requestTimes value\n\n'\
-			'Syntax: hh:mm , "x" stands for any digit'
-		ls = list(s)
-		if len(ls) != 5:
-			return False
-		else:
-			for i, char in enumerate(ls):
-				if i == 2 and char == ':':
-					pass
-				elif char.isnumeric() or char == 'x':
-					pass
-				else:
-					return False
-			return True
-
 	# ---- commands ----
 
 	def do_request(self, arg):
@@ -907,8 +846,12 @@ class CLI(cmd.Cmd):
 				name = f'api1_{times}.json'
 				f = open('../requests/' + name, mode='x')
 				json.dump(api1.request(), f, indent='\t')
-			except FileExistsError as e:
+			except FileExistsError:
 				print('You cant send requests multiple times per second!')
+			except ApiConnectionError:
+				print('Connection to Api1 failed!')
+			except ApiTimeoutError:
+				print("Api didn't respond!")
 			else:
 				print(f'file {name} created')
 		elif arg == 'api2':
@@ -920,10 +863,37 @@ class CLI(cmd.Cmd):
 				json.dump(api2.request(), f, indent='\t')
 			except FileExistsError as e:
 				print('You cant send requests multiple times per second!')
+			except ApiConnectionError:
+				print('Connection to Api2 failed!')
+			except ApiTimeoutError:
+				print("Api didn't respond!")
 			else:
 				print(f'file {name} created')
 
-	def do_loadDownloadFiles(self, arg):
+	def do_timer(self, arg):
+		'''Start or stop the request timer'''
+		if arg == '':
+			s = 'Usage: timer OPTION\n\n'
+			s += 'Options:\n'
+			s += ' start : Starts the request timer\n'
+			s += ' stop : Stop the request timer\n\n'
+			s += 'Current state: '
+			if req_timer.run:
+				s += 'running\n'
+			else:
+				s += 'stopped!\n'
+			print(s)
+		elif arg == 'start':
+			if req_timer.run == False:
+				req_timer.start()
+				print('timer started!')
+			else:
+				print('timer has already been started!')
+		elif arg == 'stop':
+			req_timer.run = False
+			print('timer stopped!')
+
+	def do_loadDownloadFiles(self, arg): # under construction
 		path = '../add_data_to_db/'
 		file_list = os.listdir(path)
 		dfiles = []
@@ -937,9 +907,9 @@ class CLI(cmd.Cmd):
 	def do_config(self, arg):
 		'''View and change configuration'''
 		# messages
-		def usage_and_sections_msg(liststr): return 'Usage: config SECTION [KEY VALUE|add VALUE|rm VALUE]\n\n'\
+		def usage_and_sections_msg(list_str): return 'Usage: config SECTION [KEY VALUE|add VALUE|rm VALUE]\n\n'\
 			'Show and change configuration values\n\n'\
-			'sections:\n' + liststr
+			'sections:\n' + list_str
 		def list_usage_msg(
 			section): return f'Usage: config {section} [add VALUE|rm VALUE]\n'
 		def dict_usage_msg(
@@ -1029,15 +999,29 @@ class CLI(cmd.Cmd):
 			s += 'Commands:\n'
 			s += ' add : Adds row to db with current weather data.\n'
 			s += ' rm : Remove last row of db.\n'
+			s += ' ping : Check and (re-)establish the connection with the database.\n'
 			print(s)
 		elif arg == 'add':
 			time = req_timer.get_now(string=True)
 			req_timer.make_req(time, debug=True)
 		elif arg == 'rm':
-			db.rm_last()
-			print('--> line removed!')
+			try:
+				db.rm_last()
+			except DBWritingError:
+				print('--> line could not be removed!')
+			except DBTimeoutError:
+				print("Database didn't respond!")
+			else:
+				print('--> line removed')
 		elif arg == 'ping':
-			print(db.con.ping())
+			try:
+				db.ping()
+			except DBConnectionError:
+				print("Connection failed!")
+			except DBTimeoutError:
+				print("Database didn't respond!")
+			else:
+				print('Connection established')
 
 	def do_restart(self, arg):
 		'''Restart program and keep the cmd history.'''
@@ -1073,6 +1057,7 @@ if __name__ == '__main__':
 	req_timer = None
 
 	cli = CLI()
+	# enables autocompletion depending on the system debian or Windows
 	if os.name == 'posix':
 		readline.parse_and_bind('bind ^I rl_complete')
 	else:
