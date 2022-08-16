@@ -191,8 +191,8 @@ class Database:
 			try:
 				self.cursor.execute(f"INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
  VALUES ('0000-01-01 00:00:00', '26.9', '1014.7', '39', '1.60934', 'SO', '0.0', '2.2');")
-				self.cursor.execute("DELETE FROM `weatherdata` WHERE -1 ORDER BY entryDate DESC LIMIT 1;")
-				self.cursor.commit()
+				self.cursor.execute("DELETE FROM `weatherdata` WHERE entryDate = '0000-01-01 00:00:00';")
+				self.con.commit()
 				return True, None
 			except pymysql.Error as e:
 				return None, DBWritingError(e)
@@ -591,29 +591,32 @@ class RequestTimer:
 			values = api1.get_values(time)
 		except BaseException as e:
 			if isinstance(e, ApiConnectionError):
-				print(f'--> {time} - Connection with Api1 failed!')
+				s = f'--> {time} - Connection with Api1 failed!'
 			elif isinstance(e, DataIncompleteError):
-				print(f'--> {time} - Data of request is incomplete!')
-				print(' missing Data:')
-				s = cli.print_iterable(e.missing, indent=' - ')
-				print(s)
+				s = f'--> {time} - Data of request is incomplete!'
+				s += ' missing Data:'
+				s += cli.print_iterable(e.missing, indent=' - ')
 			elif isinstance(e, WStOfflineError):
-				print(f'--> {time} - Data of request is outdated!')
+				s = f'--> {time} - Data of request is outdated!'
 			elif isinstance(e, ApiTimeoutError):
-				print(f'--> {time} - The request timed out!')
+				s = f'--> {time} - The request timed out!'
 			else: raise e
+			s += cli.prompt
+			print(s, end='')
 		else:
 			try:
 				# add row to db
 				db.add_row(values) # try
 			except BaseException as e:
 				if isinstance(e, DBConnectionError):
-					print(f'--> {time} - Connection with db failed!')
+					s = f'--> {time} - Connection with db failed!'
 				elif isinstance(e, DBWritingError):
-					print(f'--> {time} - Writing to db failed!')
+					s = f'--> {time} - Writing to db failed!'
 				elif isinstance(e, DBTimeoutError):
-					print(f"--> {time} - The db didn't respond!")
+					s = f"--> {time} - The db didn't respond!"
 				else: raise e
+				s += cli.prompt
+				print(s, end='')
 			else:
 				# message
 				if self.show_msg and msg:
