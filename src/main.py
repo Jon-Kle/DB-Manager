@@ -300,7 +300,7 @@ class Api1:
 		# check if data is up to date
 		datestr = data['observation_time_rfc822']
 		datet = email.utils.parsedate_to_datetime(datestr)
-		datet = datet.replace(hour=datet.hour-1, tzinfo=None)
+		datet = datet.replace(tzinfo=None)-timedelta(hours=1)
 		now = req_timer.get_now()
 		deltat = now - datet
 		if deltat > timedelta(minutes= self.config['dataMaxAge']):
@@ -591,15 +591,15 @@ class RequestTimer:
 			values = api1.get_values(time)
 		except BaseException as e:
 			if isinstance(e, ApiConnectionError):
-				s = f'--> {time} - Connection with Api1 failed!'
+				s = f'--> {time} - Connection with Api1 failed!\n'
 			elif isinstance(e, DataIncompleteError):
-				s = f'--> {time} - Data of request is incomplete!'
+				s = f'--> {time} - Data of request is incomplete!\n'
 				s += ' missing Data:'
-				s += cli.print_iterable(e.missing, indent=' - ')
+				s += cli.print_iterable(e.missing, indent=' - ') + '\n'
 			elif isinstance(e, WStOfflineError):
-				s = f'--> {time} - Data of request is outdated!'
+				s = f'--> {time} - Data of request is outdated!\n'
 			elif isinstance(e, ApiTimeoutError):
-				s = f'--> {time} - The request timed out!'
+				s = f'--> {time} - The request timed out!\n'
 			else: raise e
 			s += cli.prompt
 			print(s, end='')
@@ -875,6 +875,7 @@ class CLI(cmd.Cmd):
 
 	def do_timer(self, arg):
 		'''Start or stop the request timer'''
+		global req_timer
 		if arg == '':
 			s = 'Usage: timer OPTION\n\n'
 			s += 'Options:\n'
