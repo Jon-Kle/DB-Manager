@@ -540,6 +540,7 @@ class RequestTimer:
 		# configuration
 		self.config = config.data['requestTimer']
 		self.show_msg = self.config['show_message']
+		self.run = False
 
 	def start(self):
 		'''Initiate thread with timer().'''
@@ -591,15 +592,15 @@ class RequestTimer:
 			values = api1.get_values(time)
 		except BaseException as e:
 			if isinstance(e, ApiConnectionError):
-				s = f'--> {time} - Connection with Api1 failed!\n'
+				s = f'\n--> {time} - Connection with Api1 failed!\n'
 			elif isinstance(e, DataIncompleteError):
-				s = f'--> {time} - Data of request is incomplete!\n'
+				s = f'\n--> {time} - Data of request is incomplete!\n'
 				s += ' missing Data:'
 				s += cli.print_iterable(e.missing, indent=' - ') + '\n'
 			elif isinstance(e, WStOfflineError):
-				s = f'--> {time} - Data of request is outdated!\n'
+				s = f'\n--> {time} - Data of request is outdated!\n'
 			elif isinstance(e, ApiTimeoutError):
-				s = f'--> {time} - The request timed out!\n'
+				s = f'\n--> {time} - The request timed out!\n'
 			else: raise e
 			s += cli.prompt
 			print(s, end='')
@@ -609,11 +610,11 @@ class RequestTimer:
 				db.add_row(values) # try
 			except BaseException as e:
 				if isinstance(e, DBConnectionError):
-					s = f'--> {time} - Connection with db failed!'
+					s = f'\n--> {time} - Connection with db failed!\n'
 				elif isinstance(e, DBWritingError):
-					s = f'--> {time} - Writing to db failed!'
+					s = f'\n--> {time} - Writing to db failed!\n'
 				elif isinstance(e, DBTimeoutError):
-					s = f"--> {time} - The db didn't respond!"
+					s = f"\n--> {time} - The db didn't respond!\n"
 				else: raise e
 				s += cli.prompt
 				print(s, end='')
