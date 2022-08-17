@@ -1,4 +1,5 @@
-from customExceptions import *
+from customExceptions import * # custom exceptions and TimeoutHelper
+from threadsave import Printer # threadsave printing
 import sys, os, time # System
 from datetime import datetime, timedelta # for names of request files and RequestTimer
 import email.utils # for conversion of rfc822 to datetime
@@ -7,6 +8,7 @@ import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
 import cmd, readline # Command line
 import csv # Read download-files
+
 
 class Configuration:
 	'''
@@ -153,6 +155,8 @@ class Database:
 				return True, None
 			except pymysql.Error as e:
 				return None, DBWritingError(e)
+			except AttributeError as e:
+				return None, DBConnectionError(e)
 		timeout = TimeoutHelper(exec)
 		# this starts the thread with con() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
@@ -540,13 +544,14 @@ class RequestTimer:
 		# configuration
 		self.config = config.data['requestTimer']
 		self.show_msg = self.config['show_message']
+		self.run = False
 
 	def start(self):
 		'''Initiate thread with timer().'''
 		self.next_req = self.get_next_req_time()
 		self.seconds_till_next = (self.next_req-self.get_now()).seconds
 
-		self.thread = Thread(name='timer', target=self.timer, daemon=True)
+		self.thread = Thread(name='timer', target=self.timer)
 		self.thread.start()
 
 	def timer(self):
@@ -585,42 +590,42 @@ class RequestTimer:
 			pass
 		except DBTimeoutError:
 			pass
-
+		
+		msg = 'o/'
 		try:
-			# get Values
 			values = api1.get_values(time)
 		except BaseException as e:
 			if isinstance(e, ApiConnectionError):
-				s = f'--> {time} - Connection with Api1 failed!\n'
+				msg += f'--> {time} - Connection with Api1 failed!\n'
 			elif isinstance(e, DataIncompleteError):
-				s = f'--> {time} - Data of request is incomplete!\n'
-				s += ' missing Data:'
-				s += cli.print_iterable(e.missing, indent=' - ') + '\n'
+				msg += f'--> {time} - Data of request is incomplete!\n'
+				msg += ' missing Data:'
+				msg += cli.print_iterable(e.missing, indent=' - ') + '\n'
 			elif isinstance(e, WStOfflineError):
-				s = f'--> {time} - Data of request is outdated!\n'
+				msg += f'--> {time} - Data of request is outdated!\n'
 			elif isinstance(e, ApiTimeoutError):
-				s = f'--> {time} - The request timed out!\n'
+				msg += f'--> {time} - The request timed out!\n'
 			else: raise e
-			s += cli.prompt
-			print(s, end='')
+			msg += cli.prompt
 		else:
 			try:
 				# add row to db
 				db.add_row(values) # try
 			except BaseException as e:
 				if isinstance(e, DBConnectionError):
-					s = f'--> {time} - Connection with db failed!'
+					msg += f'--> {time} - Connection with db failed!\n'
 				elif isinstance(e, DBWritingError):
-					s = f'--> {time} - Writing to db failed!'
+					msg += f'--> {time} - Writing to db failed!\n'
 				elif isinstance(e, DBTimeoutError):
-					s = f"--> {time} - The db didn't respond!"
+					msg += f"--> {time} - The db didn't respond!\n"
 				else: raise e
-				s += cli.prompt
-				print(s, end='')
+				msg += cli.prompt
 			else:
 				# message
 				if self.show_msg and msg:
-					self.line_msg(time, values, debug=debug)
+					msg += self.line_msg(time, values, debug=debug)
+		q.print(msg, end='')
+		q.print('hello!!!')
 
 	def get_now(self, string=False):
 		'''Return a naive datetime object of the CET zone'''
@@ -666,7 +671,7 @@ class RequestTimer:
 		msg += ' - successful!\n'
 		if not debug:
 			msg += cli.prompt
-		print(msg, end='')
+		return msg
 
 class CLI(cmd.Cmd):
 	'''
@@ -804,12 +809,12 @@ class CLI(cmd.Cmd):
 		else:
 			s += "  Request timer didn't start!\n\n"
 
-		s += 'Use "help" for a list of commands'
-		print(s)
+		s += 'Use "help" for a list of commands\n'
+		q.print(s, end='')
 
 	def default(self):
 		'''Show message and help function if command is unknown.'''
-		print('This command doesn\'t exist!')
+		q.print('This command doesn\'t exist!')
 		self.onecmd('help')
 
 	def emptyline(self):
@@ -841,7 +846,7 @@ class CLI(cmd.Cmd):
 		if arg == '':
 			s = 'Usage: request api1|api2\n\n'\
 				'Save response of api in folder "requests"'
-			print(s)
+			q.print(s)
 		elif arg == 'api1':
 			try:
 				dt = datetime.now()
@@ -850,13 +855,13 @@ class CLI(cmd.Cmd):
 				f = open('../requests/' + name, mode='x')
 				json.dump(api1.request(), f, indent='\t')
 			except FileExistsError:
-				print('You cant send requests multiple times per second!')
+				q.print('You cant send requests multiple times per second!')
 			except ApiConnectionError:
-				print('Connection to Api1 failed!')
+				q.print('Connection to Api1 failed!')
 			except ApiTimeoutError:
-				print("Api didn't respond!")
+				q.print("Api didn't respond!")
 			else:
-				print(f'file {name} created')
+				q.print(f'file {name} created')
 		elif arg == 'api2':
 			try:
 				dt = datetime.now()
@@ -865,13 +870,13 @@ class CLI(cmd.Cmd):
 				f = open('../requests/' + name, mode='x')
 				json.dump(api2.request(), f, indent='\t')
 			except FileExistsError as e:
-				print('You cant send requests multiple times per second!')
+				q.print('You cant send requests multiple times per second!')
 			except ApiConnectionError:
-				print('Connection to Api2 failed!')
+				q.print('Connection to Api2 failed!')
 			except ApiTimeoutError:
-				print("Api didn't respond!")
+				q.print("Api didn't respond!")
 			else:
-				print(f'file {name} created')
+				q.print(f'file {name} created')
 
 	def do_timer(self, arg):
 		'''Start or stop the request timer'''
@@ -886,16 +891,16 @@ class CLI(cmd.Cmd):
 				s += 'running\n'
 			else:
 				s += 'stopped!\n'
-			print(s)
+			q.print(s)
 		elif arg == 'start':
 			if req_timer.run == False:
 				req_timer.start()
-				print('timer started!')
+				q.print('timer started!')
 			else:
-				print('timer has already been started!')
+				q.print('timer has already been started!')
 		elif arg == 'stop':
 			req_timer.run = False
-			print('timer stopped!')
+			q.print('timer stopped!')
 
 	def do_loadDownloadFiles(self, arg): # under construction
 		path = '../add_data_to_db/'
@@ -906,7 +911,7 @@ class CLI(cmd.Cmd):
 				dfiles.append(e)
 
 		for e in dfiles:
-			print(e)
+			q.print(e)
 
 	def do_config(self, arg):
 		'''View and change configuration'''
@@ -994,7 +999,7 @@ class CLI(cmd.Cmd):
 
 		else:
 			msg = f'{len(args)} arguments given. Expected 1 or 3\n'
-		print(msg)
+		q.print(msg)
 
 	def do_debug(self, arg):
 		'''Provides different debug functionalities'''
@@ -1004,7 +1009,7 @@ class CLI(cmd.Cmd):
 			s += ' add : Adds row to db with current weather data.\n'
 			s += ' rm : Remove last row of db.\n'
 			s += ' ping : Check and (re-)establish the connection with the database.\n'
-			print(s)
+			q.print(s)
 		elif arg == 'add':
 			time = req_timer.get_now(string=True)
 			req_timer.make_req(time, debug=True)
@@ -1012,20 +1017,20 @@ class CLI(cmd.Cmd):
 			try:
 				db.rm_last()
 			except DBWritingError:
-				print('--> line could not be removed!')
+				q.print('--> line could not be removed!')
 			except DBTimeoutError:
-				print("Database didn't respond!")
+				q.print("Database didn't respond!")
 			else:
-				print('--> line removed')
+				q.print('--> line removed')
 		elif arg == 'ping':
 			try:
 				db.ping()
 			except DBConnectionError:
-				print("Connection failed!")
+				q.print("Connection failed!")
 			except DBTimeoutError:
-				print("Database didn't respond!")
+				q.print("Database didn't respond!")
 			else:
-				print('Connection established')
+				q.print('Connection established')
 
 	def do_restart(self, arg):
 		'''Restart program and keep the cmd history.'''
@@ -1051,6 +1056,8 @@ def quit():
 if __name__ == '__main__':
 	if 'restart' in sys.argv:
 		readline.read_history_file('.cmd_history')
+
+	q = Printer()
 
 	config = Configuration()
 
