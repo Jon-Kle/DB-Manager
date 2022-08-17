@@ -545,13 +545,14 @@ class RequestTimer:
 		self.config = config.data['requestTimer']
 		self.show_msg = self.config['show_message']
 		self.run = False
+		self.trigger_debug_action = False
 
 	def start(self):
 		'''Initiate thread with timer().'''
 		self.next_req = self.get_next_req_time()
 		self.seconds_till_next = (self.next_req-self.get_now()).seconds
 
-		self.thread = Thread(name='timer', target=self.timer)
+		self.thread = Thread(name='timer', target=self.timer, daemon=True)
 		self.thread.start()
 
 	def timer(self):
@@ -559,6 +560,9 @@ class RequestTimer:
 		i = self.seconds_till_next + 1
 		self.run = True
 		while self.run:
+			if self.trigger_debug_action:
+				self.trigger_debug_action = False
+				self.make_req(time=self.get_now(string=True), debug=True)
 			if i > 0:
 				time.sleep(1)
 				i -= 1
@@ -591,7 +595,7 @@ class RequestTimer:
 		except DBTimeoutError:
 			pass
 		
-		msg = 'o/'
+		msg = ''
 		try:
 			values = api1.get_values(time)
 		except BaseException as e:
@@ -625,7 +629,6 @@ class RequestTimer:
 				if self.show_msg and msg:
 					msg += self.line_msg(time, values, debug=debug)
 		q.print(msg, end='')
-		q.print('hello!!!')
 
 	def get_now(self, string=False):
 		'''Return a naive datetime object of the CET zone'''
@@ -671,7 +674,8 @@ class RequestTimer:
 		msg += ' - successful!\n'
 		if not debug:
 			msg += cli.prompt
-		return msg
+		q.print('((1))' + msg)
+		return '((2))' + msg
 
 class CLI(cmd.Cmd):
 	'''
@@ -810,7 +814,7 @@ class CLI(cmd.Cmd):
 			s += "  Request timer didn't start!\n\n"
 
 		s += 'Use "help" for a list of commands\n'
-		q.print(s, end='')
+		print(s, end='')
 
 	def default(self):
 		'''Show message and help function if command is unknown.'''
@@ -1031,6 +1035,9 @@ class CLI(cmd.Cmd):
 				q.print("Database didn't respond!")
 			else:
 				q.print('Connection established')
+		elif arg == 'dAdd':
+			req_timer.trigger_debug_action = True
+			q.print('trigger: ' + str(req_timer.trigger_debug_action))
 
 	def do_restart(self, arg):
 		'''Restart program and keep the cmd history.'''
