@@ -310,22 +310,34 @@ class Api1:
 		# date
 		vlist['time'] = time
 
-		error = None
+		self.error = None
+		def handler():
+			if self.error == None:
+				self.error = DataIncompleteError()
+			self.error.missing.append(e.args[0])
 		try:
 			# temp
 			vlist['temp'] = data['temp_c']
-
+		except KeyError as e:
+			handler()
+		try:
 			# pressure
 			vlist['pressure'] = data['pressure_mb']
-
+		except KeyError as e:
+			handler()
+		try:
 			# hum
 			vlist['hum'] = data['relative_humidity']
-
+		except KeyError as e:
+			handler()
+		try:
 			# wind_speed
 			in_kmh = float(data['wind_mph'])
 			in_kmh *= 1.60934
 			vlist['wind_speed'] = str(in_kmh)
-
+		except KeyError as e:
+			handler()
+		try:
 			# wind_dir
 			w_dir = int(data['wind_degrees'])
 			w_dir_str = None
@@ -362,19 +374,22 @@ class Api1:
 			elif w_dir >= 327 and w_dir <= 348:
 				w_dir_str = 'NNW'
 			vlist['wind_dir'] = w_dir_str
-
+		except KeyError as e:
+			handler()
+		try:
 			# rain_rate_per_hr
 			in_mm = float(data['davis_current_observation']
 					  ['rain_rate_in_per_hr']) * 25.4
 			vlist['rain_rate_per_hr'] = str(in_mm)
-
+		except KeyError as e:
+			handler()
+		try:
 			# uv_index
 			vlist['uv_index'] = data['davis_current_observation']['uv_index']
 		except KeyError as e:
-			if not error:
-				error = DataIncompleteError()
-			error.missing.append(e.args[0])
-		if error: raise error
+			handler()
+
+		if self.error: raise self.error
 
 		return list(vlist.values())
 
@@ -586,9 +601,7 @@ class RequestTimer:
 
 		try:
 			db.ping()
-		except DBConnectionError:
-			pass
-		except DBTimeoutError:
+		except (DBConnectionError, DBTimeoutError):
 			pass
 
 		try:
@@ -599,7 +612,7 @@ class RequestTimer:
 				s = f'\n--> {time} - Connection with Api1 failed!\n'
 			elif isinstance(e, DataIncompleteError):
 				s = f'\n--> {time} - Data of request is incomplete!\n'
-				s += ' missing Data:'
+				s += ' missing Data:\n'
 				s += cli.print_iterable(e.missing, indent=' - ') + '\n'
 			elif isinstance(e, WStOfflineError):
 				s = f'\n--> {time} - Data of request is outdated!\n'
