@@ -1,4 +1,4 @@
-from customExceptions import *
+from customExceptions import * # custom exceptions and TimeoutHelper
 import sys, os, time # System
 from datetime import datetime, timedelta # for names of request files and RequestTimer
 import email.utils # for conversion of rfc822 to datetime
@@ -541,6 +541,7 @@ class RequestTimer:
 		self.config = config.data['requestTimer']
 		self.show_msg = self.config['show_message']
 		self.run = False
+		self.trigger_debug_action = False
 
 	def start(self):
 		'''Initiate thread with timer().'''
@@ -555,6 +556,9 @@ class RequestTimer:
 		i = self.seconds_till_next + 1
 		self.run = True
 		while self.run:
+			if self.trigger_debug_action:
+				self.trigger_debug_action = False
+				self.make_req(time=self.get_now(string=True), debug=True)
 			if i > 0:
 				time.sleep(1)
 				i -= 1
@@ -1027,6 +1031,9 @@ class CLI(cmd.Cmd):
 				print("Database didn't respond!")
 			else:
 				print('Connection established')
+		elif arg == 'dAdd':
+			req_timer.trigger_debug_action = True
+			print('trigger: ' + str(req_timer.trigger_debug_action))
 
 	def do_restart(self, arg):
 		'''Restart program and keep the cmd history.'''
