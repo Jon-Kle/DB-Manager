@@ -825,7 +825,7 @@ class CLI(cmd.Cmd):
 		s += 'Use "help" for a list of commands'
 		print(s)
 
-	def default(self):
+	def default(self, line):
 		'''Show message and help function if command is unknown.'''
 		print('This command doesn\'t exist!')
 		self.onecmd('help')
