@@ -1,3 +1,4 @@
+from typing import Iterable
 from customExceptions import * # custom exceptions and TimeoutHelper
 import sys, os, time # System
 from datetime import datetime, timedelta # for names of request files and RequestTimer
@@ -26,16 +27,42 @@ class Configuration:
 	def __init__(self):
 		'''Open the config.json file and save its content in the attribute "data"'''
 		self.data = None
+		self.excluded = []
+		# load config file
 		f = open('../rsc/config.json')
-		configs = f.read()
-		self.data = json.loads(configs)
+		s = f.read()
+		self.data = json.loads(s)
 		f.close()
+		# load dat file
+		f = open('../rsc/dat.json')
+		s = f.read()
+		self.secrets = json.loads(s)
+
+		# check for empty values
+		for k in self.data.keys():
+			for k2 in self.data[k].keys():
+				if self.data[k][k2] == '':
+					self.data[k][k2] = self.secrets[k][k2]
+					self.excluded.append((k, k2))
+		# print(self.data)
+		# print(self.excluded)
 
 	def save(self):
 		'''Save the content of "data" in the config.json file.'''
-		configfile = open('../rsc/config.json', 'w')
-		json.dump(self.data, configfile, indent='\t')
-		configfile.close()
+		# remove excluded data
+		for e in self.excluded:
+			k, k2 = e[0], e[1]
+			self.secrets[k][k2] = self.data[k][k2]
+			self.data[k][k2] = ''
+
+		# save config file
+		configFile = open('../rsc/config.json', 'w')
+		json.dump(self.data, configFile, indent='\t')
+		configFile.close()
+		# save dat file
+		datFile = open('../rsc/dat.json', 'w')
+		json.dump(self.secrets, datFile, indent='\t')
+		configFile.close()
 
 class Database:
 	'''
