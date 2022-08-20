@@ -1,0 +1,29 @@
+{
+	"dbLogin": {
+		"host": "",
+		"port": 3306,
+		"user": "",
+		"password": "",
+		"database": "my-db",
+		"timeoutMs": 3000
+	},
+	"weatherlinkApi": {
+		"url": "https://api.weatherlink.com/v1/NoaaExt.json",
+		"user": "",
+		"pass": "",
+		"apiToken": "",
+		"timeoutMs": 3000,
+		"dataMaxAge": 5
+	},
+	"weatherlinkApi2": {
+		"url": "https://api.weatherlink.com/v2/",
+		"api-key": "",
+		"api-secret": "",
+		"stationID": "",
+		"timeoutMs": 3000
+	},
+	"requestTimer": {
+		"timer_at_startup": true,
+		"show_message": true
+	}
+}
