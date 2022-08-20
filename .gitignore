@@ -6,3 +6,4 @@ requests/
 versions/
 .vscode/
 src/.cmd_history
+rsc/dat.json
