@@ -1,4 +1,3 @@
-from typing import Iterable
 from customExceptions import * # custom exceptions and TimeoutHelper
 import sys, os, time # System
 from datetime import datetime, timedelta # for names of request files and RequestTimer
