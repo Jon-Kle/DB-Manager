@@ -1,6 +1,6 @@
 # DB-Manager
-Python Programm zum Management von Wetterdaten
+A python program for the management of a MySQL database
 
-Dieses Program sammelt regelmäßig die Wetterdaten der Schul-Wetterstation 
-über die Apis von Davis Instruments Weatherlink 
-und speichert sie in einer MySQL Datenbank
+This program regularly collects the data of a school-weatherstation
+by using the two apis of Davis Instruments WeatherLink 
+and saves it in a MySQL database
