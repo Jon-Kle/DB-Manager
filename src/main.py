@@ -245,7 +245,7 @@ class Api1:
 	password : str
 			the password that is also used to log into the WeatherLink website
 	token : str
-			unique API-Token. Dont share with anyone!
+			unique API-Token. don't share with anyone!
 			If compromised generate a new one at https://www.weatherlink.com/account
 
 	Methods
@@ -437,7 +437,7 @@ class Api2:
 	key : str
 			used to identify the user making the request
 	secret : str
-			used to calculate the signature for the request Dont share with anyone! 
+			used to calculate the signature for the request don't share with anyone! 
 			If compromised generate a new one at https://www.weatherlink.com/account
 	station_id : str
 			ID which identifies the weather station the data is requested from
@@ -963,7 +963,7 @@ class CLI(cmd.Cmd):
 		def dict_usage_msg(
 			section): return f'Usage: config {section} [KEY VALUE]\n'
 		def type_not_supported_msg(section): return f'{section} is a {type(section)}!\n'\
-			'This type is not supported, please change the configfile'
+			'This type is not supported, please change the config file'
 		def section_not_existing_msg(section): return f'Section "{section}" doesn\'t exist!\n'\
 			'Use "config" to view sections\n'
 
