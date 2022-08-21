@@ -1104,7 +1104,6 @@ if __name__ == '__main__':
 	db = None
 	api1 = None
 	api2 = None
-	dl = None
 	req_timer = None
 
 	cli = CLI()
