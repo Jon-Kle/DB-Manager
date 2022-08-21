@@ -7,3 +7,5 @@ versions/
 .vscode/
 src/.cmd_history
 rsc/dat.json
+.gitsecret/keys/random_seed
+!*.secret
