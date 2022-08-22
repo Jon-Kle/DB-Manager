@@ -179,6 +179,8 @@ class Database:
 				return True, None
 			except pymysql.Error as e:
 				return None, DBWritingError(e)
+			except AttributeError as e:
+				return None, DBConnectionError(e)
 		timeout = TimeoutHelper(exec)
 		# this starts the thread with con() and a timer
 		# finishes the timer before the function is executed, a timeout error is raised
