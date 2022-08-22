@@ -1119,8 +1119,7 @@ class CLI(cmd.Cmd):
                 em += "\n> ApiTimeoutError"
                 em += "\n  Occurs when the api doesn't respond"
             else:
-                em - + "There was a problem my tringing to ping the Api"
-                em += "\nEverythin is ok with the connection to the Api"
+                em = "\nEverythin is ok with the connection to the Api"
             print(em)
 
     def do_restart(self, arg):
