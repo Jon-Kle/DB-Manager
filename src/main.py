@@ -8,6 +8,52 @@ import pymysql, requests, json # APIs and database
 import cmd, readline # Command line
 import csv # Read download-files
 
+class TimeUtils:
+	'''
+	Class to help with datetime objects and handle the timing of request
+
+	Methods
+	-------
+	get_now():
+			returns datetime object of CET timezone
+	get_next_req_time():
+			Calculates next_req.
+	'''
+	
+	def get_now(self, string=False):
+		'''
+		Return a naive datetime object of the CET zone
+		
+				parameters:
+						string (bool) : lets this method return a string of 
+							the datetime object in iso format.
+		'''
+		now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DTS
+		now = now.replace(microsecond=0)
+		if string:
+			return now.isoformat(sep=' ')
+		return now
+
+	def get_next(self, now=None):
+		'''
+		Calculate time of next request.
+
+		is always at xx:00 or at xx:30
+
+				parameters:
+						now (datetime) : starting point for calculation.
+							If None the current time in CET gets used.
+		'''
+		if not now:
+			now = self.get_now()
+		next_req = now + timedelta(minutes=30)
+		minutes = next_req.minute
+		if minutes < 30:
+			next_req = next_req.replace(minute=0, second=0, microsecond=0)
+		else:
+			next_req = next_req.replace(minute=30, second=0, microsecond=0)
+		return next_req
+
 class Configuration:
 	'''
 	A Class to read and save the config.json file.
@@ -43,8 +89,6 @@ class Configuration:
 				if self.data[k][k2] == '':
 					self.data[k][k2] = self.secrets[k][k2]
 					self.excluded.append((k, k2))
-		# print(self.data)
-		# print(self.excluded)
 
 	def save(self):
 		'''Save the content of "data" in the config.json file.'''
@@ -321,7 +365,7 @@ class Api1:
 						ApiTimeoutError
 		'''
 		if not time:
-			time = req_timer.get_now(string=True)
+			time = time_utils.get_now(string=True)
 		# request Api1
 		data = self.request()
 
@@ -329,7 +373,7 @@ class Api1:
 		datestr = data['observation_time_rfc822']
 		datet = email.utils.parsedate_to_datetime(datestr)
 		datet = datet.replace(tzinfo=None)-timedelta(hours=1)
-		now = req_timer.get_now()
+		now = time_utils.get_now()
 		deltat = now - datet
 		if deltat > timedelta(minutes= self.config['dataMaxAge']):
 			raise WStOfflineError(datet)
@@ -571,10 +615,6 @@ class RequestTimer:
 			Counts seconds_till_next and calls make_req().
 	make_req(time=None):
 			Makes request and adds row to the database.
-	get_now():
-			returns datetime object of CET timezone
-	get_next_req_time():
-			Calculates next_req.
 	line_msg(time, vlist):
 			Builds message for when a line is added to the database
 	'''
@@ -588,8 +628,8 @@ class RequestTimer:
 
 	def start(self):
 		'''Initiate thread with timer().'''
-		self.next_req = self.get_next_req_time()
-		self.seconds_till_next = (self.next_req-self.get_now()).seconds
+		self.next_req = time_utils.get_next()
+		self.seconds_till_next = (self.next_req-time_utils.get_now()).seconds
 
 		self.thread = Thread(name='timer', target=self.timer, daemon=True)
 		self.thread.start()
@@ -601,15 +641,15 @@ class RequestTimer:
 		while self.run:
 			if self.trigger_debug_action:
 				self.trigger_debug_action = False
-				self.make_req(time=self.get_now(string=True), debug=True)
+				self.make_req(time=time_utils.get_now(string=True), debug=True)
 			if i > 0:
 				time.sleep(1)
 				i -= 1
 			else:
 				self.make_req()
 				# calculate next request
-				self.next_req = self.get_next_req_time()
-				self.seconds_till_next = (self.next_req-self.get_now()).seconds
+				self.next_req = time_utils.get_next()
+				self.seconds_till_next = (self.next_req-time_utils.get_now()).seconds
 				i = self.seconds_till_next + 1
 
 	def make_req(self, time=None, msg=True, debug=False):
@@ -667,28 +707,6 @@ class RequestTimer:
 				# message
 				if self.show_msg and msg:
 					self.line_msg(time, values, debug=debug)
-
-	def get_now(self, string=False):
-		'''Return a naive datetime object of the CET zone'''
-		now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DTS
-		now = now.replace(microsecond=0)
-		if string:
-			return now.isoformat(sep=' ')
-		return now
-
-	def get_next_req_time(self):
-		'''Calculate time of next request.
-
-		Requests are always at xx:00 or at xx:30
-		'''
-		now = self.get_now()
-		next_req = now + timedelta(minutes=30)
-		minutes = next_req.minute
-		if minutes < 30:
-			next_req = next_req.replace(minute=0, second=0, microsecond=0)
-		else:
-			next_req = next_req.replace(minute=30, second=0, microsecond=0)
-		return next_req
 
 	def line_msg(self, time, values, debug=False):
 		'''Build message for when a new line is added to the database.
@@ -758,9 +776,6 @@ class CLI(cmd.Cmd):
 
 		s = '    -- DB-Manager --\n\n'
 
-		# requestTimer
-		global req_timer
-		req_timer = RequestTimer()
 		start_req_timer = True
 
 		# api1
@@ -842,6 +857,9 @@ class CLI(cmd.Cmd):
 			# msg in chat that all is well
 			s += ' established\n\n'
 
+		# request timer
+		global req_timer
+		req_timer = RequestTimer()
 		if start_req_timer:
 			req_timer.start()
 			# msg in chat
@@ -1052,7 +1070,7 @@ class CLI(cmd.Cmd):
 			s += ' ping : Check and (re-)establish the connection with the database.\n'
 			print(s)
 		elif arg == 'add':
-			time = req_timer.get_now(string=True)
+			time = time_utils.get_now(string=True)
 			req_timer.make_req(time, debug=True)
 		elif arg == 'rm':
 			try:
@@ -1101,6 +1119,7 @@ if __name__ == '__main__':
 	if 'restart' in sys.argv:
 		readline.read_history_file('.cmd_history')
 
+	time_utils = TimeUtils()
 	config = Configuration()
 
 	db = None
