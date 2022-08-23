@@ -1102,6 +1102,20 @@ class CLI(cmd.Cmd):
         '''Exit program.'''
         quit()
 
+    def do_mend(self, arg):
+        if arg == 'load':
+            print("\ntemp load\n")
+            pass
+        elif arg == 'gaps':
+            print("\ntemp gaps\n")
+            pass
+        else:
+            s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
+            s += 'Commands:\n'
+            s += ' load : temp load.\n'
+            s += ' gaps : temp gaps.\n'
+            print(s)
+
 def restart():
     '''Save the cmd history and restart in a new thread'''
     req_timer.run = False
