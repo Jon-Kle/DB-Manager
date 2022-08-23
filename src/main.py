@@ -1062,14 +1062,7 @@ class CLI(cmd.Cmd):
 
     def do_debug(self, arg):
         '''Provides different debug functionalities'''
-        if arg == '':
-            s = 'Usage: debug COMMAND\n\n'
-            s += 'Commands:\n'
-            s += ' add : Adds row to db with current weather data.\n'
-            s += ' rm : Remove last row of db.\n'
-            s += ' ping : Check and (re-)establish the connection with the database.\n'
-            print(s)
-        elif arg == 'add':
+        if arg == 'add':
             time = time_utils.get_now(string=True)
             req_timer.make_req(time, debug=True)
         elif arg == 'rm':
@@ -1085,14 +1078,44 @@ class CLI(cmd.Cmd):
             try:
                 db.ping()
             except DBConnectionError:
-                print("Connection failed!")
+                print("Connection to the database failed!")
             except DBTimeoutError:
                 print("Database didn't respond!")
             else:
-                print('Connection established')
+                print('Connection to the database established')
         elif arg == 'dAdd':
             req_timer.trigger_debug_action = True
             print('trigger: ' + str(req_timer.trigger_debug_action))
+        elif arg == 'pingApi':
+            '''Checks if API1 is working correctly and if not giving the error'''
+            em = "\nThere was a problem by pinging the Api:"
+            try:
+                Api1().get_values()
+            except ApiConnectionError:
+                em += "\n ApiConnectionError"
+                em += "\n Occurs when the database doesn't respond"
+            except DataIncompleteError:
+                em += "\n DataIncompleteError"
+                em += "\n Occurs when the data of an api request is incomplete"
+            except WStOfflineError:
+                em += "\n WStOfflineError"
+                em += "\n Occurs when the data of a request is outdated"
+            except ApiTimeoutError:
+                em += "\n ApiTimeoutError"
+                em += "\n Occurs when the api doesn't respond"
+            else:
+                em = "\nEverythin is ok with the connection to the Api\n"
+            em += "\n"
+            print(em)
+        else:
+            s = '\nUnknown command \''+arg+'\' Usage: debug COMMAND\n\n'
+            s += 'Commands:\n'
+            s += ' add : Adds row to db with current weather data.\n'
+            s += ' rm : Remove last row of db.\n'
+            s += ' ping : Check and (re-)establish the connection with the database.\n'
+            s += ' pingApi : Check the connection with the Api.\n'
+            s += ' dAdd : like \'add\' but from the thread from req_timer.\n'
+            print(s)
 
     def do_restart(self, arg):
         '''Restart program and keep the cmd history.'''
