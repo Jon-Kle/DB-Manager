@@ -82,14 +82,14 @@ class TimeoutHelper(Thread):
     Then the timer() method of this class is called with the length of the timeout 
     in milliseconds and the Error that should be called when the timeout occurs.
     e.g.:
-		    def func():
-		    	try:
-		    		self.con.ping(reconnect=True)
-		    		return True, None
-		    	except pymysql.err.OperationalError as e:
-		    		return None, DBConnectionError(e)
-		    timeout = TimeoutHelper(ping)
-		    timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+            def func():
+                try:
+                    self.con.ping(reconnect=True)
+                    return True, None
+                except pymysql.err.OperationalError as e:
+                    return None, DBConnectionError(e)
+            timeout = TimeoutHelper(ping)
+            timeout.timer(self.config['timeoutMs'], DBTimeoutError)
     
     The timer() method will return the first value returned from the defined function
     if it is not None of False and raise the second value like an exception. 
