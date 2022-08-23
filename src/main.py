@@ -1130,7 +1130,8 @@ def restart():
     req_timer.run = False
     readline.write_history_file('.cmd_history')
     config.save()
-    os.execl(sys.executable, 'python3', __file__, 'restart')
+    path = f'"{os.path.abspath(__file__)}"'
+    os.execl(sys.executable, path, sys.argv[0], 'restart')
 
 def quit():
     '''Exit the program'''
