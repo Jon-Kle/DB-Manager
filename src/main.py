@@ -1103,13 +1103,14 @@ class CLI(cmd.Cmd):
         quit()
 
 def restart():
-	'''Save the cmd history and restart in a new thread'''
-	req_timer.run = False
-	readline.write_history_file('.cmd_history')
-	config.save()
-	path = __file__
-	path = path.replace(' ', '\ ')
-	os.execl(sys.executable, sys.executable, path, 'restart')
+    '''Save the cmd history and restart in a new thread'''
+    req_timer.run = False
+    readline.write_history_file('.cmd_history')
+    config.save()
+    path = f'"{os.path.abspath(__file__)}"'
+    print(path)
+    print(sys.argv)
+    os.execl(sys.executable, path, sys.argv[0], 'restart')
 
 def quit():
     '''Exit the program'''
