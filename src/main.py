@@ -1108,8 +1108,6 @@ def restart():
     readline.write_history_file('.cmd_history')
     config.save()
     path = f'"{os.path.abspath(__file__)}"'
-    print(path)
-    print(sys.argv)
     os.execl(sys.executable, path, sys.argv[0], 'restart')
 
 def quit():
