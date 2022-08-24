@@ -140,6 +140,7 @@ class Database:
 
     def __init__(self):
         self.config = config.data['dbLogin']
+        self.gaps = []
 
     def check(self):
         '''
@@ -270,6 +271,28 @@ class Database:
                 return None, DBWritingError(e)
         timeout = TimeoutHelper(exec)
         timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+
+    def get_gaps(self):
+        def get_data():
+            try:
+                db.cursor.execute('SELECT entryDate FROM weatherdata') # WHERE entryDate >= "2022-08-24 09:47:08"
+                data = db.cursor.fetchall()
+                if len(data) == 0:
+                    return [], None
+                return data, None
+            except AttributeError as e:
+                return None, DBConnectionError(e)
+        timeout = TimeoutHelper(get_data)
+        data = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+        # data_size = sys.getsizeof(data)
+        # print(data_size, "Bytes")
+        if data == []:
+            return
+        # get first value to check and last value to check
+        # fill range with tuple in data and tuples of time and False
+        # if it is not in data
+        data = [(data[i]['entryDate'], True) for i, e in enumerate(data)]
+        print(*data, sep="\n")
 
 class Api1:
     '''
@@ -976,12 +999,8 @@ class CLI(cmd.Cmd):
             print("\ntemp load\n")
             pass
         elif arg == 'gaps':
-            lines_in_db = db.cursor.execute('select entryDate from weatherdata')
-            data = db.cursor.fetchall()
-            data_size = sys.getsizeof(data)
-            print(data_size, "Bytes")
-            data = [data[i]['entryDate'] for i, e in enumerate(data)]
-            print(*data, sep="\n")
+            db.get_gaps()
+            pass
         else:
             s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
             s += 'Commands:\n'

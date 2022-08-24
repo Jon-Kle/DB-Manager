@@ -1,5 +1,6 @@
 from threading import Thread
 import time
+from types import NoneType
 
 class DBConnectionError(Exception):
     '''
@@ -141,7 +142,7 @@ class TimeoutHelper(Thread):
         while t > 0:
             if self.e:
                 raise self.e
-            elif self.r:
+            elif type(self.r) is not NoneType:
                 return self.r
             else:
                 time.sleep(0.001)
