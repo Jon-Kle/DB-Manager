@@ -968,9 +968,22 @@ class CLI(cmd.Cmd):
         for i, e in enumerate(file_list):
             if os.path.isfile(path + e) and e.startswith('Wetterstation_R.-Steiner-Schule_Ismaning') and e.endswith('.csv'):
                 dfiles.append(e)
-
         for e in dfiles:
             print(e)
+
+    def do_mend(self, arg):
+        if arg == 'load':
+            print("\ntemp load\n")
+            pass
+        elif arg == 'gaps':
+            print("\ntemp gaps\n")
+            pass
+        else:
+            s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
+            s += 'Commands:\n'
+            s += ' load : temp load.\n'
+            s += ' gaps : temp gaps.\n'
+            print(s)
 
     def do_config(self, arg):
         '''View and change configuration'''
@@ -1124,20 +1137,6 @@ class CLI(cmd.Cmd):
     def do_quit(self, arg):
         '''Exit program.'''
         quit()
-
-    def do_mend(self, arg):
-        if arg == 'load':
-            print("\ntemp load\n")
-            pass
-        elif arg == 'gaps':
-            print("\ntemp gaps\n")
-            pass
-        else:
-            s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
-            s += 'Commands:\n'
-            s += ' load : temp load.\n'
-            s += ' gaps : temp gaps.\n'
-            print(s)
 
 def restart():
     '''Save the cmd history and restart in a new thread'''
