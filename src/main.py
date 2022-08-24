@@ -140,8 +140,6 @@ class Database:
 
     def __init__(self):
         self.config = config.data['db']
-        self.entries = []
-        self.gaps = []
 
     def check(self):
         '''
@@ -274,21 +272,20 @@ class Database:
         timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
     def get_entries(self):
+        '''Return a list of tuples with all entries and the information if the entry exists in the db'''
         def get_data():
             try:
                 db.cursor.execute('SELECT entryDate FROM weatherdata') # WHERE entryDate >= "2022-08-24 09:47:08"
                 data = db.cursor.fetchall()
-                if len(data) == 0:
-                    return [], None
                 return data, None
             except AttributeError as e:
                 return None, DBConnectionError(e)
         timeout = TimeoutHelper(get_data)
         data = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
-        if data == []:
-            return
-
         data = [e['entryDate'] for e in data]
+        if data == []:
+            raise DBNoDataReceivedError()
+
         entries = []
         first_str = self.config["mendStartTime"]
         first_l = first_str.split(sep=",")
@@ -302,24 +299,23 @@ class Database:
             else:
                 entries.append((current, False))
             current += timedelta(minutes=30)
-        self.entries = entries
         return entries
 
-    def get_gaps(self):
+    def get_gaps(self, entries):
         last_status = True
         gaps = []
-        for i in self.entries:
-            if not i[1] and last_status:
-                start = i[0]
+        entries.append((entries[-1][0]+timedelta(minutes=30), True))
+        for i, e in enumerate(entries):
+            if not e[1] and last_status: # if current is false but last is true
+                start = e[0]
                 count = 1
-            elif not i[1] and not last_status:
+            elif not e[1] and not last_status: # if current is false and last too
                 count += 1
-            elif i[1] and not last_status:
-                end = i[0]
+            elif e[1] and not last_status: # if current is true but last is false
+                end = entries[i-1][0]
                 gaps.append((start, end, count))
-            last_status = i[1]
-        print(*gaps, sep="\n")
-        self.gaps = gaps
+            last_status = e[1]
+        return gaps
 
 class Api1:
     '''
@@ -515,7 +511,7 @@ class Api1:
 
         return list(vlist.values())
 
-class :
+class Api2:
     '''
     A class to represent the API V2 (Not actively used!)
 
@@ -1026,17 +1022,163 @@ class CLI(cmd.Cmd):
             print(e)
 
     def do_mendDB(self, arg):
-        if arg == 'load':
+        arg = arg.rstrip('\n').split()
+        if arg[0] == 'load':
             print("\ntemp load\n")
             pass
-        elif arg == 'gaps':
-            db.get_entries()
-            db.get_gaps()
+        elif arg[0] == 'sg': # show message for DBConnectionError and DBNoDadaReceivedError(db.get_gaps())
+            entries = db.get_entries()
+            if len(arg) == 1:
+                gaps = db.get_gaps(entries)
+                # Amount of Gaps
+                print('\nAmount of Gaps found:', len(gaps))
+                # List of Gaps
+                for e in gaps:
+                    if e[0] == e[1]:
+                        print(' - ' + e[0].isoformat(sep=' '))
+                        continue
+                    s = ' - ' + e[0].isoformat(sep=' ')
+                    s += ' -> ' + e[1].isoformat(sep=' ')
+                    s += ' len: ' + str(e[2])
+                    print(s)
+            elif arg[1] == '-d':
+                # calculate date one month later
+                def next_end(current):
+                    next_month = current.month+1 
+                    if next_month > 12:
+                        next_month = 1
+                    while current.month != next_month:
+                        current += timedelta(minutes=30)
+                    return current
+                # values for start and end points
+                start_index = 0
+                char = (' ', '+', '@') # characters used for printing
+                start_of_table = entries[start_index][0].replace(day=1, hour=0, minute=0) # first day in month of start
+                start_of_entries = entries[start_index][0] # date of first entry
+                end_of_entries = entries[-1][0] # date of last entry
+                end_of_table = next_end(end_of_entries).replace(day=1, hour=0, minute=0) # first day in month after end
+                # preparations
+                current = start_of_table
+                end = next_end(start_of_table)
+                empty = True # table starts with data that is not available
+                index = start_index # index to track entries
+
+                while True:
+                    table = ''
+                    start = current # for information above table
+                    while current != end:
+                        if current == start_of_entries: # printing of available values and index counting starts
+                            empty = False
+                        if current == end_of_entries: # ends
+                            empty = True
+                        if empty == True: # printing if no data available
+                            table += char[0]
+                        elif empty == False: # printing if data available
+                            if entries[index][1]:
+                                table += char[2]
+                            else:
+                                table += char[1]
+                        if current.hour == 23 and current.minute == 30: # at line end
+                            table += ']\n['
+                        if empty == False:
+                            index += 1
+                        current += timedelta(minutes=30)
+                    # assembling, cleaning and printing table
+                    table = table.rstrip('\n[')
+                    table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
+                    print(table)
+
+                    if current != end_of_table:
+                        ans = input('more?[y/n]:')
+                        readline.remove_history_item(
+                            readline.get_current_history_length()-1
+                        )
+                        if ans == 'y':
+                            end = next_end(current)
+                        elif ans == 'n':
+                            break
+                    else: 
+                        break
+            elif arg[1] == '-m':
+                # calculate date one year later
+                def next_end(current):
+                    next_year = current.year+1
+                    while current.year != next_year:
+                        current += timedelta(days=1)
+                    return current
+                # values for start and end points
+                start_index = 0
+                char = (' ', '+', 'x', '@') # characters used for printing
+                start_of_table = entries[start_index][0].replace(month=1, day=1, hour=0, minute=0) # first day in month of start
+                start_of_entries = entries[start_index][0] # date of first entry
+                end_of_entries = entries[-1][0] # date of last entry
+                end_of_table = next_end(end_of_entries).replace(month=1, day=1, hour=0, minute=0) # first day in month after end
+                # preparations
+                current = start_of_table
+                end = next_end(start_of_table)
+                empty = True # table starts with data that is not available
+                index = start_index # index to track entries
+
+                while True:
+                    table = ''
+                    start = current # for information above table
+                    while current != end:
+                        stat = set()
+                        for e in range(48):
+                            if current == start_of_entries: # printing of available values and index counting starts
+                                empty = False
+                            if current == end_of_entries: # ends
+                                empty = True
+                            if empty == True: # printing if no data available
+                                stat.add(0)
+                            elif empty == False: # printing if data available
+                                if entries[index][1]:
+                                    stat.add(2)
+                                elif not entries[index][1]:
+                                    stat.add(1)
+                            if empty == False:
+                                index += 1
+                            current += timedelta(minutes=30)
+                        if stat in [{0}]: # if no data available
+                                table += char[0]
+                        elif stat in [{1}, {0, 1}, {0, 1, 2}]: # if 1 in set
+                            table += char[1]
+                        elif stat in [{1, 2}]: # if set is 1, 2 => extra char
+                            table += char[2]
+                        elif stat in [{2}, {0, 2}]: # if day contains 2 and 0 => complete
+                            table += char[3]
+                        if current.day == 1 and current.hour == 0 and current.minute == 0: # at line end
+                            table += ']\n['
+                    # assembling, cleaning and printing table
+                    table = table.rstrip('\n[')
+                    table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
+                    print(table)
+
+                    if current != end_of_table:
+                        ans = input('more?[y/n]:')
+                        readline.remove_history_item(
+                            readline.get_current_history_length()-1
+                        )
+                        if ans == 'y':
+                            end = next_end(current)
+                        elif ans == 'n':
+                            break
+                    else: 
+                        break
+            else:
+                print('\nUnknown option \'' + arg[1] + '\'!\n')
+                s = 'Usage: mendDB showGaps OPTION\n'
+                s += 'Options:\n'
+                s += ' -d : temp gaps.\n'
+                s += ' -m : temp gaps.\n'
+                print(s)
+        elif arg[0] != '':
+            print('\nUnknown command \'' + arg[0] + '\'!\n')
         else:
-            s = '\nUnknown command \''+arg+'\' Usage: mendDB COMMAND\n\n'
+            s = 'Usage: mendDB COMMAND\n\n'
             s += 'Commands:\n'
-            s += ' load : temp load.\n'
-            s += ' gaps : temp gaps.\n'
+            s += ' mend : select download file\n'
+            s += ' showGaps : show gaps in database\n'
             print(s)
 
     def do_config(self, arg):

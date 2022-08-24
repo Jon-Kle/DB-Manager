@@ -26,6 +26,11 @@ class DBWritingError(Exception):
     def __init__(self, e):
         self.args = e.args
 
+class DBNoDataReceivedError(Exception):
+    '''Occurs when a query doesn't return any data'''
+    def __init__(self):
+        pass
+
 class DBTimeoutError(Exception):
     '''Occurs when the database doesn't respond'''
     def __init__(self):
