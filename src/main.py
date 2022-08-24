@@ -774,14 +774,15 @@ class CLI(cmd.Cmd):
     def preloop(self):
         '''Check if different parts of the program are working and build intro message.'''
 
-        s = '    -- DB-Manager --\n\n'
+        s = '    -- DB-Manager --'
+        print(s)
 
         start_req_timer = True
 
         # api1
         global api1
         api1 = Api1()
-        s += ' API1 request:'
+        s = '\n API1 request:'
         try:
             api1.check()
         except BaseException as e:
@@ -808,10 +809,11 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' successful\n\n'
+        print(s, end='')
 
         # api2 (not used)
         global api2
-        s += ' API2 request:'
+        s = ' API2 request:'
         try:
             api2 = Api2()
         except BaseException as e:
@@ -830,11 +832,12 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' successful\n\n'
+        print(s, end='')
 
         # database
         global db
         db = Database()
-        s += ' Connection with database:'
+        s = ' Connection with database:'
         try:
             db.check()
         except BaseException as e:
@@ -856,6 +859,7 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' established\n\n'
+        print(s, end='')
 
         # request timer
         global req_timer
@@ -863,10 +867,10 @@ class CLI(cmd.Cmd):
         if start_req_timer:
             req_timer.start()
             # msg in chat
-            s += '  Everything is ok:\n'
+            s = '  Everything is ok:\n'
             s += '   Request timer started.\n\n'
         else:
-            s += "  Request timer didn't start!\n\n"
+            s = "  Request timer didn't start!\n\n"
 
         s += 'Use "help" for a list of commands'
         print(s)
