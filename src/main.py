@@ -960,11 +960,11 @@ class CLI(cmd.Cmd):
             else:
                 print(f'file {name} created')
 
-    def do_timer(self, arg):
+    def do_reqTimer(self, arg):
         '''Start or stop the request timer'''
         global req_timer
         if arg == '':
-            s = 'Usage: timer OPTION\n\n'
+            s = 'Usage: reqTimer OPTION\n\n'
             s += 'Options:\n'
             s += ' start : Starts the request timer\n'
             s += ' stop : Stop the request timer\n\n'
@@ -994,7 +994,7 @@ class CLI(cmd.Cmd):
         for e in dfiles:
             print(e)
 
-    def do_mend(self, arg):
+    def do_mendDB(self, arg):
         if arg == 'load':
             print("\ntemp load\n")
             pass
@@ -1002,7 +1002,7 @@ class CLI(cmd.Cmd):
             db.get_gaps()
             pass
         else:
-            s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
+            s = '\nUnknown command \''+arg+'\' Usage: mendDB COMMAND\n\n'
             s += 'Commands:\n'
             s += ' load : temp load.\n'
             s += ' gaps : temp gaps.\n'
