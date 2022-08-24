@@ -1,5 +1,5 @@
 {
-	"dbLogin": {
+	"db": {
 		"host": "",
 		"port": 3306,
 		"user": "",
@@ -8,7 +8,7 @@
 		"timeoutMs": 3000,
 		"mendStartTime": "2012,7,9,0,0,0"
 	},
-	"weatherlinkApi": {
+	"Api1": {
 		"url": "https://api.weatherlink.com/v1/NoaaExt.json",
 		"user": "",
 		"pass": "",
@@ -16,7 +16,7 @@
 		"timeoutMs": 3000,
 		"dataMaxAge": 5
 	},
-	"weatherlinkApi2": {
+	"Api2": {
 		"url": "https://api.weatherlink.com/v2/",
 		"api-key": "",
 		"api-secret": "",

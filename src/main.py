@@ -19,13 +19,13 @@ class TimeUtils:
     get_next_req_time():
             Calculates next_req.
     '''
-    
+
     def get_now(self, string=False):
         '''
         Return a naive datetime object of the CET zone
-        
+
                 parameters:
-                        string (bool) : lets this method return a string of 
+                        string (bool) : lets this method return a string of
                             the datetime object in iso format.
         '''
         now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DTS
@@ -134,19 +134,19 @@ class Database:
     rm_last():
             removes the last entry
     check_writing_to_db():
-            Writes and deleted one line to the database 
+            Writes and deleted one line to the database
             to check if writing to the db is possible.
     '''
 
     def __init__(self):
-        self.config = config.data['dbLogin']
+        self.config = config.data['db']
         self.entries = []
         self.gaps = []
 
     def check(self):
         '''
         Establish a connection and check if writing works.
-        
+
                 Exceptions:
                         DBConnectionError
                         DBWritingError
@@ -158,7 +158,7 @@ class Database:
     def connect(self):
         '''
         Try to connect with the mysql database.
-        
+
                 Exceptions:
                     DBConnectionError
                     DBTimeoutError
@@ -349,14 +349,14 @@ class Api1:
     check():
             Check if connection works and if the data is complete and up to date.
     request():
-            Makes an HTTP request with the given values. 
+            Makes an HTTP request with the given values.
             Returns the answer in json format as a dict.
     get_values():
             Extracts the Values for the db from a request and returns them.
     '''
 
     def __init__(self):
-        self.config = config.data['weatherlinkApi']
+        self.config = config.data['Api1']
         self.url = self.config['url']
         self.user = self.config['user']
         self.password = self.config['pass']
@@ -365,7 +365,7 @@ class Api1:
     def check(self):
         '''
         Check if the connection works, the data complete and is up to date.
-        
+
                 Exceptions:
                         ApiConnectionError
                         DataIncompleteError
@@ -377,7 +377,7 @@ class Api1:
     def request(self):
         '''
         Return response from the Api as a dict.
-        
+
                 Exceptions:
                         ApiConnectionError
                         ApiTimeoutError
@@ -515,7 +515,7 @@ class Api1:
 
         return list(vlist.values())
 
-class Api2:
+class :
     '''
     A class to represent the API V2 (Not actively used!)
 
@@ -533,7 +533,7 @@ class Api2:
     key : str
             used to identify the user making the request
     secret : str
-            used to calculate the signature for the request Dont share with anyone! 
+            used to calculate the signature for the request Dont share with anyone!
             If compromised generate a new one at https://www.weatherlink.com/account
     station_id : str
             ID which identifies the weather station the data is requested from
@@ -549,12 +549,12 @@ class Api2:
     '''
 
     def __init__(self):
-        self.config = config.data['weatherlinkApi2']
+        self.config = config.data['Api2']
         self.url = self.config['url']
         self.key = self.config['api-key']
         self.secret = self.config['api-secret']
         self.station_id = self.config['stationID']
-    
+
     def check(self):
         '''
         Check the connection with the Api.
@@ -602,7 +602,7 @@ class Api2:
     def get_stations(self):
         '''
         Return IDs and names from weatherlink Stations as dict
-        
+
                 Exceptions:
                         ApiConnectionError
                         ApiTimeoutError
@@ -824,14 +824,15 @@ class CLI(cmd.Cmd):
     def preloop(self):
         '''Check if different parts of the program are working and build intro message.'''
 
-        s = '    -- DB-Manager --\n\n'
+        s = '    -- DB-Manager --'
+        print(s)
 
         start_req_timer = True
 
         # api1
         global api1
         api1 = Api1()
-        s += ' API1 request:'
+        s = '\n API1 request:'
         try:
             api1.check()
         except BaseException as e:
@@ -858,10 +859,11 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' successful\n\n'
+        print(s, end='')
 
         # api2 (not used)
         global api2
-        s += ' API2 request:'
+        s = ' API2 request:'
         try:
             api2 = Api2()
         except BaseException as e:
@@ -880,20 +882,21 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' successful\n\n'
+        print(s, end='')
 
         # database
         global db
         db = Database()
-        s += ' Connection with database:'
+        s = ' Connection with database:'
         try:
             db.check()
         except BaseException as e:
             # msg in chat
             s += ' failed!\n'
             if isinstance(e, DBConnectionError):
-                s += f'{cli.print_iterable(config.data["dbLogin"], indent="   ")}'
+                s += f'{cli.print_iterable(config.data["db"], indent="   ")}'
                 s += '  Database may not be active or the login data is incorrect!\n'
-                s += '  Use "config dbLogin" to change login data and reconnect\n\n'
+                s += '  Use "config db" to change login data and reconnect\n\n'
             elif isinstance(e, DBWritingError):
                 s += ' Writing to the database raised an error:\n'
                 s += str(e) + '\n\n'
@@ -906,6 +909,7 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' established\n\n'
+        print(s, end='')
 
         # request timer
         global req_timer
@@ -913,10 +917,10 @@ class CLI(cmd.Cmd):
         if start_req_timer:
             req_timer.start()
             # msg in chat
-            s += '  Everything is ok:\n'
+            s = '  Everything is ok:\n'
             s += '   Request timer started.\n\n'
         else:
-            s += "  Request timer didn't start!\n\n"
+            s = "  Request timer didn't start!\n\n"
 
         s += 'Use "help" for a list of commands'
         print(s)
