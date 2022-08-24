@@ -140,6 +140,8 @@ class Database:
 
     def __init__(self):
         self.config = config.data['db']
+        self.entries = []
+        self.gaps = []
 
     def check(self):
         '''
@@ -270,6 +272,54 @@ class Database:
                 return None, DBWritingError(e)
         timeout = TimeoutHelper(exec)
         timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+
+    def get_entries(self):
+        def get_data():
+            try:
+                db.cursor.execute('SELECT entryDate FROM weatherdata') # WHERE entryDate >= "2022-08-24 09:47:08"
+                data = db.cursor.fetchall()
+                if len(data) == 0:
+                    return [], None
+                return data, None
+            except AttributeError as e:
+                return None, DBConnectionError(e)
+        timeout = TimeoutHelper(get_data)
+        data = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+        if data == []:
+            return
+
+        data = [e['entryDate'] for e in data]
+        entries = []
+        first_str = self.config["mendStartTime"]
+        first_l = first_str.split(sep=",")
+        first = datetime(*[int(s) for s in first_l])
+        last = time_utils.get_next()
+
+        current = first
+        while current != last:
+            if current in data:
+                entries.append((current, True))
+            else:
+                entries.append((current, False))
+            current += timedelta(minutes=30)
+        self.entries = entries
+        return entries
+
+    def get_gaps(self):
+        last_status = True
+        gaps = []
+        for i in self.entries:
+            if not i[1] and last_status:
+                start = i[0]
+                count = 1
+            elif not i[1] and not last_status:
+                count += 1
+            elif i[1] and not last_status:
+                end = i[0]
+                gaps.append((start, end, count))
+            last_status = i[1]
+        print(*gaps, sep="\n")
+        self.gaps = gaps
 
 class Api1:
     '''
@@ -941,11 +991,11 @@ class CLI(cmd.Cmd):
             else:
                 print(f'file {name} created')
 
-    def do_timer(self, arg):
+    def do_reqTimer(self, arg):
         '''Start or stop the request timer'''
         global req_timer
         if arg == '':
-            s = 'Usage: timer OPTION\n\n'
+            s = 'Usage: reqTimer OPTION\n\n'
             s += 'Options:\n'
             s += ' start : Starts the request timer\n'
             s += ' stop : Stop the request timer\n\n'
@@ -972,9 +1022,22 @@ class CLI(cmd.Cmd):
         for i, e in enumerate(file_list):
             if os.path.isfile(path + e) and e.startswith('') and e.endswith('.csv'):
                 dfiles.append(e)
-
         for e in dfiles:
             print(e)
+
+    def do_mendDB(self, arg):
+        if arg == 'load':
+            print("\ntemp load\n")
+            pass
+        elif arg == 'gaps':
+            db.get_entries()
+            db.get_gaps()
+        else:
+            s = '\nUnknown command \''+arg+'\' Usage: mendDB COMMAND\n\n'
+            s += 'Commands:\n'
+            s += ' load : temp load.\n'
+            s += ' gaps : temp gaps.\n'
+            print(s)
 
     def do_config(self, arg):
         '''View and change configuration'''
@@ -1128,20 +1191,6 @@ class CLI(cmd.Cmd):
     def do_quit(self, arg):
         '''Exit program.'''
         quit()
-
-    def do_mend(self, arg):
-        if arg == 'load':
-            print("\ntemp load\n")
-            pass
-        elif arg == 'gaps':
-            print("\ntemp gaps\n")
-            pass
-        else:
-            s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
-            s += 'Commands:\n'
-            s += ' load : temp load.\n'
-            s += ' gaps : temp gaps.\n'
-            print(s)
 
 def restart():
     '''Save the cmd history and restart in a new thread'''
