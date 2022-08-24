@@ -288,7 +288,9 @@ class Database:
             return
         data = [(data[i]['entryDate'], True) for i, e in enumerate(data)]
         entries = []
-        first = datetime(*self.config["mendStartTime"])
+        first_str = self.config["mendStartTime"]
+        first_l = first_str.split(sep=",")
+        first = datetime(*[int(s) for s in first_l])
         last = time_utils.get_next()
         current = first
         while current != last:
