@@ -976,8 +976,12 @@ class CLI(cmd.Cmd):
             print("\ntemp load\n")
             pass
         elif arg == 'gaps':
-            print("\ntemp gaps\n")
-            pass
+            lines_in_db = db.cursor.execute('select entryDate from weatherdata')
+            data = db.cursor.fetchall()
+            data_size = sys.getsizeof(data)
+            print(data_size, "Bytes")
+            data = [data[i]['entryDate'] for i, e in enumerate(data)]
+            print(*data, sep="\n")
         else:
             s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
             s += 'Commands:\n'
