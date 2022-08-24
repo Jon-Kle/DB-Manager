@@ -141,6 +141,7 @@ class Database:
     def __init__(self):
         self.config = config.data['dbLogin']
         self.entries = []
+        self.gaps = []
 
     def check(self):
         '''
@@ -286,12 +287,14 @@ class Database:
         data = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
         if data == []:
             return
-        data = [(data[i]['entryDate'], True) for i, e in enumerate(data)]
+
+        data = [e['entryDate'] for e in data]
         entries = []
         first_str = self.config["mendStartTime"]
         first_l = first_str.split(sep=",")
         first = datetime(*[int(s) for s in first_l])
         last = time_utils.get_next()
+
         current = first
         while current != last:
             if current in data:
@@ -301,6 +304,22 @@ class Database:
             current += timedelta(minutes=30)
         self.entries = entries
         return entries
+
+    def get_gaps(self):
+        last_status = True
+        gaps = []
+        for i in self.entries:
+            if not i[1] and last_status:
+                start = i[0]
+                count = 1
+            elif not i[1] and not last_status:
+                count += 1
+            elif i[1] and not last_status:
+                end = i[0]
+                gaps.append((start, end, count))
+            last_status = i[1]
+        print(*gaps, sep="\n")
+        self.gaps = gaps
 
 class Api1:
     '''
@@ -1008,7 +1027,7 @@ class CLI(cmd.Cmd):
             pass
         elif arg == 'gaps':
             db.get_entries()
-            pass
+            db.get_gaps()
         else:
             s = '\nUnknown command \''+arg+'\' Usage: mendDB COMMAND\n\n'
             s += 'Commands:\n'
