@@ -1021,12 +1021,12 @@ class CLI(cmd.Cmd):
         for e in dfiles:
             print(e)
 
-    def do_mendDB(self, arg):
+    def do_database(self, arg):
         arg = arg.rstrip('\n').split()
-        if arg[0] == 'load':
+        if arg[0] == 'mend':
             print("\ntemp load\n")
             pass
-        elif arg[0] == 'sg': # show message for DBConnectionError and DBNoDadaReceivedError(db.get_gaps())
+        elif arg[0] == 'gaps': # show message for DBConnectionError and DBNoDadaReceivedError(db.get_gaps())
             entries = db.get_entries()
             if len(arg) == 1:
                 gaps = db.get_gaps(entries)
@@ -1167,7 +1167,7 @@ class CLI(cmd.Cmd):
                         break
             else:
                 print('\nUnknown option \'' + arg[1] + '\'!\n')
-                s = 'Usage: mendDB showGaps OPTION\n'
+                s = 'Usage: database gaps OPTION\n'
                 s += 'Options:\n'
                 s += ' -d : temp gaps.\n'
                 s += ' -m : temp gaps.\n'
@@ -1175,10 +1175,10 @@ class CLI(cmd.Cmd):
         elif arg[0] != '':
             print('\nUnknown command \'' + arg[0] + '\'!\n')
         else:
-            s = 'Usage: mendDB COMMAND\n\n'
+            s = 'Usage: database COMMAND\n\n'
             s += 'Commands:\n'
             s += ' mend : select download file\n'
-            s += ' showGaps : show gaps in database\n'
+            s += ' gaps : show gaps in database\n'
             print(s)
 
     def do_config(self, arg):
