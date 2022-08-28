@@ -1011,21 +1011,60 @@ class CLI(cmd.Cmd):
             req_timer.run = False
             print('timer stopped!')
 
-    def do_loadDownloadFiles(self, arg): # under construction
-        path = '../add_data_to_db/'
-        file_list = os.listdir(path)
-        dfiles = []
-        for i, e in enumerate(file_list):
-            if os.path.isfile(path + e) and e.startswith('') and e.endswith('.csv'):
-                dfiles.append(e)
-        for e in dfiles:
-            print(e)
-
     def do_database(self, arg):
         arg = arg.rstrip('\n').split()
+        if len(arg) == 0:
+            arg.append('')
         if arg[0] == 'mend':
-            print("\ntemp load\n")
-            pass
+            # find available files and show enumerated list of names
+            path = '../add_data/'
+            file_list = os.listdir(path)
+            dfiles = [f for f in file_list if os.path.isfile(path + f) and f.endswith('.csv')]
+            print('\nSelect the file you want to use for mending:')
+            for i, e in enumerate(dfiles):
+                print('', i, '->', e)
+            print(' q -> exit')
+            file_name = ''
+            # select file
+            while True:
+                ans = input('>')
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
+                if ans.isdecimal() and int(ans) in range(len(dfiles)):
+                    file_name = dfiles[int(ans)]
+                    break
+                elif ans == 'q':
+                    break
+            if file_name == '':
+                return
+            # write file name into txt file in add data
+            
+            # read file with name and save data as list or dir
+            csv_file = open(path + file_name, encoding='mac_roman')
+            reader = csv.reader(csv_file)
+            data = []
+            for row in reader:
+                if reader.line_num > 6:
+                    # sort out the lines when nothing is entered ('--')
+                    if '--' in [row[0], row[7], row[1], row[10], row[13], row[14], row[23], row[28]]:
+                        continue
+                    else:
+                        # transform datetime
+                        date_time = row[0].split(' ')
+                        e_date = date_time[0].split('/')
+                        e_time = date_time[1].split(':')
+                        entry_date = datetime(
+                        int('20' + e_date[2]),
+                        int(e_date[1]),
+                        int(e_date[0]),
+                        int(e_time[0]),
+                        int(e_time[1])
+                        ).isoformat(sep=' ')
+                        data.append([entry_date, row[7], row[1], row[10], row[13], row[14], row[23], row[28]])
+            print('finished')
+            print(len(data))
+
         elif arg[0] == 'gaps': # show message for DBConnectionError and DBNoDadaReceivedError(db.get_gaps())
             entries = db.get_entries()
             if len(arg) == 1:
@@ -1368,5 +1407,3 @@ if __name__ == '__main__':
         readline.parse_and_bind('tab: complete')
     cli.cmdloop()
 
-    # dl = Download()
-    # dl.load('_1-3-22_00-00_1_Day_1647772733_v2.csv')
