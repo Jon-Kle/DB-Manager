@@ -213,12 +213,12 @@ class Database:
                         DBWritingError
                         DBTimeoutError
         '''
-        queryString = f"INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
- VALUES ('{values[0]}', '{values[1]}', '{values[2]}', '{values[3]}', '{values[4]}', '{values[5]}', '{values[6]}', '{values[7]}');"
+        queryString = "INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+ VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);"
         # this function gets executed in another thread
         def exec():
             try:
-                self.cursor.execute(queryString)
+                self.cursor.execute(queryString, values)
                 self.con.commit()
                 return True, None
             except pymysql.Error as e:
@@ -275,7 +275,7 @@ class Database:
         '''Return a list of tuples with all entries and the information if the entry exists in the db'''
         def get_data():
             try:
-                db.cursor.execute('SELECT entryDate FROM weatherdata') # WHERE entryDate >= "2022-08-24 09:47:08"
+                db.cursor.execute('SELECT entryDate FROM weatherdata ORDER BY entryDate ASC') # WHERE entryDate >= "2022-08-24 09:47:08"
                 data = db.cursor.fetchall()
                 return data, None
             except AttributeError as e:
@@ -293,9 +293,11 @@ class Database:
         last = time_utils.get_next()
 
         current = first
+        index = 0
         while current != last:
-            if current in data:
+            if current == data[index]:
                 entries.append((current, True))
+                index += 1
             else:
                 entries.append((current, False))
             current += timedelta(minutes=30)
@@ -316,6 +318,56 @@ class Database:
                 gaps.append((start, end, count))
             last_status = e[1]
         return gaps
+
+    def load_file(self, file_name):
+        # read file with name and save data as list or dir
+        csv_file = open(file_name, encoding='mac_roman')
+        reader = csv.reader(csv_file)
+        data = []
+        for row in reader:
+            if reader.line_num > 6:
+                # sort out the lines when nothing is entered ('--')
+                if '--' in [row[0], row[7], row[1], row[10], row[13], row[14], row[23], row[28]]:
+                    continue
+                else:
+                    # transform datetime
+                    date_time = row[0].split(' ')
+                    e_date = date_time[0].split('/')
+                    e_time = date_time[1].split(':')
+                    entry_date = datetime(
+                    int('20' + e_date[2]),
+                    int(e_date[1]),
+                    int(e_date[0]),
+                    int(e_time[0]),
+                    int(e_time[1]))
+                    # replace commas with dots
+                    pressure = row[1].replace( ',', '.')
+                    rainrate = row[23].replace( ',', '.')
+                    data.append([entry_date, row[7], pressure, row[10], row[13], row[14], rainrate, row[28]])
+        # sort out entries that are not in a gap
+        segments = []
+        gaps = self.get_gaps(self.get_entries())
+        gap_index = 0
+        data_index = 0
+        new_data = []
+        while True:
+            if data[data_index][0] < gaps[gap_index][0]:
+                data_index += 1
+            elif data[data_index][0] > gaps[gap_index][1]:
+                gap_index += 1
+            else:
+                data[data_index][0] = data[data_index][0].isoformat(sep=' ')
+                new_data.append(data[data_index])
+                data_index += 1
+            if data_index == len(data):
+                break
+
+        # add exceptions
+        db.cursor.executemany("INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+ VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);", new_data)
+        db.con.commit()
+
+        return len(new_data)
 
 class Api1:
     '''
@@ -1038,32 +1090,10 @@ class CLI(cmd.Cmd):
                     break
             if file_name == '':
                 return
-            # write file name into txt file in add data
+            # write file name into file in add_data
             
-            # read file with name and save data as list or dir
-            csv_file = open(path + file_name, encoding='mac_roman')
-            reader = csv.reader(csv_file)
-            data = []
-            for row in reader:
-                if reader.line_num > 6:
-                    # sort out the lines when nothing is entered ('--')
-                    if '--' in [row[0], row[7], row[1], row[10], row[13], row[14], row[23], row[28]]:
-                        continue
-                    else:
-                        # transform datetime
-                        date_time = row[0].split(' ')
-                        e_date = date_time[0].split('/')
-                        e_time = date_time[1].split(':')
-                        entry_date = datetime(
-                        int('20' + e_date[2]),
-                        int(e_date[1]),
-                        int(e_date[0]),
-                        int(e_time[0]),
-                        int(e_time[1])
-                        ).isoformat(sep=' ')
-                        data.append([entry_date, row[7], row[1], row[10], row[13], row[14], row[23], row[28]])
-            print('finished')
-            print(len(data))
+            new_entries = db.load_file(path + file_name)
+            print(f'{new_entries} new entries added!')
 
         elif arg[0] == 'gaps': # show message for DBConnectionError and DBNoDadaReceivedError(db.get_gaps())
             entries = db.get_entries()
@@ -1157,7 +1187,6 @@ class CLI(cmd.Cmd):
                 end = next_end(start_of_table)
                 empty = True # table starts with data that is not available
                 index = start_index # index to track entries
-
                 while True:
                     table = ''
                     start = current # for information above table
@@ -1180,9 +1209,9 @@ class CLI(cmd.Cmd):
                             current += timedelta(minutes=30)
                         if stat in [{0}]: # if no data available
                                 table += char[0]
-                        elif stat in [{1}, {0, 1}, {0, 1, 2}]: # if 1 in set
+                        elif stat in [{1}, {0, 1}]: # if 1 in set
                             table += char[1]
-                        elif stat in [{1, 2}]: # if set is 1, 2 => extra char
+                        elif stat in [{1, 2}, {0, 1, 2}]: # if set is 1, 2 => extra char
                             table += char[2]
                         elif stat in [{2}, {0, 2}]: # if day contains 2 and 0 => complete
                             table += char[3]
