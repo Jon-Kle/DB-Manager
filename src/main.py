@@ -1,4 +1,5 @@
 from customExceptions import * # custom exceptions and TimeoutHelper
+import download_file # module for extracting the range of a download file
 import sys, os, time # System
 from datetime import datetime, timedelta # for names of request files and RequestTimer
 import email.utils # for conversion of rfc822 to datetime
@@ -297,26 +298,56 @@ class Database:
         while current != last:
             if current == data[index]:
                 entries.append((current, True))
-                index += 1
+                if index != len(data)-1:
+                    index += 1
             else:
                 entries.append((current, False))
             current += timedelta(minutes=30)
         return entries
 
     def get_gaps(self, entries):
+        # read dates from file
+        try:
+            f = open('../add_data/.remaining_gaps')
+            range_str_l = f.readlines()
+            # parse into datetime objects
+            range_l = []
+            for l in range_str_l:
+                l.strip('\n')
+                l2 = l.split()
+                range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+            f.close()
+        except FileNotFoundError:
+            range_l = []
+        if len(range_l) > 0:
+            range_index = 0
+        else: 
+            range_index = None
+
         last_status = True
         gaps = []
         entries.append((entries[-1][0]+timedelta(minutes=30), True))
         for i, e in enumerate(entries):
-            if not e[1] and last_status: # if current is false but last is true
+            val = e[1]
+            # check if current date is in range of .remaining_gaps file
+            if range_index != None and not e[1]:
+                while e[0] > range_l[range_index][1]:
+                    range_index += 1
+                    if range_index == len(range_l):
+                        range_index -= 1
+                        break
+                if e[0] >= range_l[range_index][0] and e[0] <= range_l[range_index][1]:
+                    val = True
+
+            if not val and last_status: # if current is false but last is true
                 start = e[0]
                 count = 1
-            elif not e[1] and not last_status: # if current is false and last too
+            elif not val and not last_status: # if current is false and last too
                 count += 1
-            elif e[1] and not last_status: # if current is true but last is false
+            elif val and not last_status: # if current is true but last is false
                 end = entries[i-1][0]
                 gaps.append((start, end, count))
-            last_status = e[1]
+            last_status = val
         return gaps
 
     def load_file(self, file_name):
@@ -340,12 +371,19 @@ class Database:
                     int(e_date[0]),
                     int(e_time[0]),
                     int(e_time[1]))
+                    # correct entry_dates
+                    if entry_date.minute%30 != 0:
+                        difference = entry_date.minute%30
+                        if difference >= 15:
+                            entry_date += timedelta(minutes=30-difference)
+                        else:
+                            entry_date -= timedelta(minutes=difference)
                     # replace commas with dots
                     pressure = row[1].replace( ',', '.')
                     rainrate = row[23].replace( ',', '.')
                     data.append([entry_date, row[7], pressure, row[10], row[13], row[14], rainrate, row[28]])
+
         # sort out entries that are not in a gap
-        segments = []
         gaps = self.get_gaps(self.get_entries())
         gap_index = 0
         data_index = 0
@@ -1090,11 +1128,86 @@ class CLI(cmd.Cmd):
                     break
             if file_name == '':
                 return
-            # write file name into file in add_data
+                
+            # store file range in download file
+            # extract start and end from df
+            date_range = download_file.extract_range(file_name)
             
+            # read data from file
+            try:
+                f = open('../add_data/.remaining_gaps')
+                range_str_l = f.readlines()
+                # parse into datetime objects
+                range_l = []
+                for l in range_str_l:
+                    l.strip('\n')
+                    l2 = l.split()
+                    range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                f.close()
+            except FileNotFoundError:
+                range_l = []
+
+            # # merge new range into file
+            new_ranges = []
+            second_placed = False
+            first_placed = False
+            state = None # 0 if first val is before, 1 if first val is in range_l[first_i]
+            first_i = None # index of range_l
+            i = 0
+            while i < len(range_l): # find position of first date in range
+                if date_range[0] < range_l[i][0]: # before
+                    state = 0
+                    first_i = i
+                    first_placed = True
+                    break
+                elif date_range[0] < range_l[i][1]: # in
+                    state = 1
+                    first_i = i
+                    first_placed = True
+                    break
+                new_ranges.append(range_l[i])
+                i += 1
+            if not first_placed: # after
+                new_ranges = range_l + [date_range]
+
+            if not first_placed:
+                pass
+            elif state == None:
+                new_ranges = [date_range] + range_l
+            else:
+                while i < len(range_l): # find position of second date in range
+                    if date_range[1] < range_l[i][0]: # before
+                        if state == 0:
+                            new_ranges.append(date_range)
+                        elif state == 1:
+                            new_ranges.append((range_l[first_i][0], date_range[1]))
+                        new_ranges += range_l[i:]
+                        second_placed = True
+                        break
+                    elif date_range[1] < range_l[i][1]: # in
+                        if state == 0:
+                            new_ranges.append((date_range[0], range_l[i][1]))
+                        elif state == 1:
+                            new_ranges.append((range_l[first_i][0], range_l[i][1]))
+                        new_ranges += range_l[i+1:]
+                        second_placed = True
+                        break
+                    i += 1
+                if not second_placed:
+                    new_ranges.append((date_range[0], date_range[1]))
+
+            # parse data to string
+            range_str = ''
+            for e in new_ranges:
+                range_str += datetime.isoformat(e[0]) + ' ' + datetime.isoformat(e[1]) + '\n'
+                
+            # save new data in file
+            f = open('../add_data/.remaining_gaps', mode='w')
+            f.write(range_str)
+            f.close
+
             new_entries = db.load_file(path + file_name)
             print(f'{new_entries} new entries added!')
-
         elif arg[0] == 'gaps': # show message for DBConnectionError and DBNoDadaReceivedError(db.get_gaps())
             entries = db.get_entries()
             if len(arg) == 1:
@@ -1119,6 +1232,23 @@ class CLI(cmd.Cmd):
                     while current.month != next_month:
                         current += timedelta(minutes=30)
                     return current
+                # read data from file
+                try:
+                    f = open('../add_data/.remaining_gaps')
+                    range_str_l = f.readlines()
+                    # parse into datetime objects
+                    range_l = []
+                    for l in range_str_l:
+                        l.strip('\n')
+                        l2 = l.split()
+                        range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                    f.close()
+                except FileNotFoundError:
+                    range_l = []
+                if len(range_l) > 0:
+                    range_index = 0
+                else:
+                    range_index = None
                 # values for start and end points
                 start_index = 0
                 char = (' ', '+', '@') # characters used for printing
@@ -1131,7 +1261,7 @@ class CLI(cmd.Cmd):
                 end = next_end(start_of_table)
                 empty = True # table starts with data that is not available
                 index = start_index # index to track entries
-
+                print_table = True
                 while True:
                     table = ''
                     start = current # for information above table
@@ -1146,16 +1276,27 @@ class CLI(cmd.Cmd):
                             if entries[index][1]:
                                 table += char[2]
                             else:
-                                table += char[1]
+                                if range_index != None:
+                                    while current > range_l[range_index][1]:
+                                        range_index += 1
+                                        if range_index == len(range_l):
+                                            range_index -= 1
+                                            break
+                                    if current >= range_l[range_index][0] and current <= range_l[range_index][1]:
+                                        table += char[0]
+                                    else:
+                                        table += char[1]
                         if current.hour == 23 and current.minute == 30: # at line end
                             table += ']\n['
                         if empty == False:
                             index += 1
                         current += timedelta(minutes=30)
-                    # assembling, cleaning and printing table
-                    table = table.rstrip('\n[')
-                    table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
-                    print(table)
+                    if print_table:
+                        # assembling, cleaning and printing table
+                        table = table.rstrip('\n[')
+                        table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
+                        print(table)
+                        print_table = False
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
@@ -1164,6 +1305,7 @@ class CLI(cmd.Cmd):
                         )
                         if ans == 'y':
                             end = next_end(current)
+                            print_table = True
                         elif ans == 'n':
                             break
                     else: 
@@ -1175,6 +1317,23 @@ class CLI(cmd.Cmd):
                     while current.year != next_year:
                         current += timedelta(days=1)
                     return current
+                # read data from file
+                try:
+                    f = open('../add_data/.remaining_gaps')
+                    range_str_l = f.readlines()
+                    # parse into datetime objects
+                    range_l = []
+                    for l in range_str_l:
+                        l.strip('\n')
+                        l2 = l.split()
+                        range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                    f.close()
+                except FileNotFoundError:
+                    range_l = []
+                if len(range_l) > 0:
+                    range_index = 0
+                else:
+                    range_index = None
                 # values for start and end points
                 start_index = 0
                 char = (' ', '+', 'x', '@') # characters used for printing
@@ -1187,6 +1346,7 @@ class CLI(cmd.Cmd):
                 end = next_end(start_of_table)
                 empty = True # table starts with data that is not available
                 index = start_index # index to track entries
+                print_table = True
                 while True:
                     table = ''
                     start = current # for information above table
@@ -1202,8 +1362,17 @@ class CLI(cmd.Cmd):
                             elif empty == False: # printing if data available
                                 if entries[index][1]:
                                     stat.add(2)
-                                elif not entries[index][1]:
-                                    stat.add(1)
+                                else:
+                                    if range_index != None:
+                                        while entries[index][0] > range_l[range_index][1]:
+                                            range_index += 1
+                                            if range_index == len(range_l):
+                                                range_index -= 1
+                                                break
+                                        if entries[index][0] >= range_l[range_index][0] and entries[index][0] <= range_l[range_index][1]:
+                                            stat.add(0)
+                                        else:
+                                            stat.add(1)
                             if empty == False:
                                 index += 1
                             current += timedelta(minutes=30)
@@ -1217,10 +1386,12 @@ class CLI(cmd.Cmd):
                             table += char[3]
                         if current.day == 1 and current.hour == 0 and current.minute == 0: # at line end
                             table += ']\n['
-                    # assembling, cleaning and printing table
-                    table = table.rstrip('\n[')
-                    table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
-                    print(table)
+                    if print_table:
+                        # assembling, cleaning and printing table
+                        table = table.rstrip('\n[')
+                        table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
+                        print(table)
+                        print_table = False
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
@@ -1229,6 +1400,7 @@ class CLI(cmd.Cmd):
                         )
                         if ans == 'y':
                             end = next_end(current)
+                            print_table = True
                         elif ans == 'n':
                             break
                     else: 
