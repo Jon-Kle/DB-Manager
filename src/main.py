@@ -400,10 +400,16 @@ class Database:
             if data_index == len(data):
                 break
 
-        # add exceptions
-        db.cursor.executemany("INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+        def write_data():
+            try:
+                db.cursor.executemany("INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
  VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);", new_data)
-        db.con.commit()
+                db.con.commit()
+                return True, None
+            except AttributeError as e:
+                raise None, DBConnectionError(e)
+        timeout = TimeoutHelper(write_data)
+        timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
         return len(new_data)
 
@@ -1128,88 +1134,100 @@ class CLI(cmd.Cmd):
                     break
             if file_name == '':
                 return
-                
-            # store file range in download file
-            # extract start and end from df
-            date_range = download_file.extract_range(file_name)
             
-            # read data from file
             try:
-                f = open('../add_data/.remaining_gaps')
-                range_str_l = f.readlines()
-                # parse into datetime objects
-                range_l = []
-                for l in range_str_l:
-                    l.strip('\n')
-                    l2 = l.split()
-                    range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
-                f.close()
-            except FileNotFoundError:
-                range_l = []
+                new_entries = db.load_file(path + file_name)
+                print(f'{new_entries} new entries added!')
+            except DBConnectionError as e:
+                print("Connection to the database was not established!")
+            except DBTimeoutError as e:
+                print("Writing to the Database took too long!")
 
-            # # merge new range into file
-            new_ranges = []
-            second_placed = False
-            first_placed = False
-            state = None # 0 if first val is before, 1 if first val is in range_l[first_i]
-            first_i = None # index of range_l
-            i = 0
-            while i < len(range_l): # find position of first date in range
-                if date_range[0] < range_l[i][0]: # before
-                    state = 0
-                    first_i = i
-                    first_placed = True
-                    break
-                elif date_range[0] < range_l[i][1]: # in
-                    state = 1
-                    first_i = i
-                    first_placed = True
-                    break
-                new_ranges.append(range_l[i])
-                i += 1
-            if not first_placed: # after
-                new_ranges = range_l + [date_range]
+            def add_df_range_to_file():
+                # store file range in download file
+                # extract start and end from df
+                date_range = download_file.extract_range(file_name)
 
-            if not first_placed:
-                pass
-            elif state == None:
-                new_ranges = [date_range] + range_l
-            else:
-                while i < len(range_l): # find position of second date in range
-                    if date_range[1] < range_l[i][0]: # before
-                        if state == 0:
-                            new_ranges.append(date_range)
-                        elif state == 1:
-                            new_ranges.append((range_l[first_i][0], date_range[1]))
-                        new_ranges += range_l[i:]
-                        second_placed = True
+                # read data from file
+                try:
+                    f = open('../add_data/.remaining_gaps')
+                    range_str_l = f.readlines()
+                    # parse into datetime objects
+                    range_l = []
+                    for l in range_str_l:
+                        l.strip('\n')
+                        l2 = l.split()
+                        range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                    f.close()
+                except FileNotFoundError:
+                    range_l = []
+
+                # merge new range into file
+                new_ranges = []
+                second_placed = False
+                first_placed = False
+                state = None # 0 if first val is before, 1 if first val is in range_l[first_i]
+                first_i = None # index of range_l
+                i = 0
+                while i < len(range_l): # find position of first date in range
+                    if date_range[0] < range_l[i][0]: # before
+                        state = 0
+                        first_i = i
+                        first_placed = True
                         break
-                    elif date_range[1] < range_l[i][1]: # in
-                        if state == 0:
-                            new_ranges.append((date_range[0], range_l[i][1]))
-                        elif state == 1:
-                            new_ranges.append((range_l[first_i][0], range_l[i][1]))
-                        new_ranges += range_l[i+1:]
-                        second_placed = True
+                    elif date_range[0] < range_l[i][1]: # in
+                        state = 1
+                        first_i = i
+                        first_placed = True
                         break
+                    new_ranges.append(range_l[i])
                     i += 1
-                if not second_placed:
-                    new_ranges.append((date_range[0], date_range[1]))
+                if not first_placed: # after
+                    new_ranges = range_l + [date_range]
 
-            # parse data to string
-            range_str = ''
-            for e in new_ranges:
-                range_str += datetime.isoformat(e[0]) + ' ' + datetime.isoformat(e[1]) + '\n'
+                if not first_placed:
+                    pass
+                elif state == None:
+                    new_ranges = [date_range] + range_l
+                else:
+                    while i < len(range_l): # find position of second date in range
+                        if date_range[1] < range_l[i][0]: # before
+                            if state == 0:
+                                new_ranges.append(date_range)
+                            elif state == 1:
+                                new_ranges.append((range_l[first_i][0], date_range[1]))
+                            new_ranges += range_l[i:]
+                            second_placed = True
+                            break
+                        elif date_range[1] < range_l[i][1]: # in
+                            if state == 0:
+                                new_ranges.append((date_range[0], range_l[i][1]))
+                            elif state == 1:
+                                new_ranges.append((range_l[first_i][0], range_l[i][1]))
+                            new_ranges += range_l[i+1:]
+                            second_placed = True
+                            break
+                        i += 1
+                    if not second_placed:
+                        new_ranges.append((date_range[0], date_range[1]))
+
+                # parse data to string
+                range_str = ''
+                for e in new_ranges:
+                    range_str += datetime.isoformat(e[0]) + ' ' + datetime.isoformat(e[1]) + '\n'
                 
-            # save new data in file
-            f = open('../add_data/.remaining_gaps', mode='w')
-            f.write(range_str)
-            f.close
+                # save new data in file
+                f = open('../add_data/.remaining_gaps', mode='w')
+                f.write(range_str)
+                f.close
+            add_df_range_to_file()
 
-            new_entries = db.load_file(path + file_name)
-            print(f'{new_entries} new entries added!')
-        elif arg[0] == 'gaps': # show message for DBConnectionError and DBNoDadaReceivedError(db.get_gaps())
-            entries = db.get_entries()
+        elif arg[0] == 'gaps':
+            try:
+                entries = db.get_entries()
+            except DBNoDataReceivedError as e:
+                print('The database is empty!')
+                return
             if len(arg) == 1:
                 gaps = db.get_gaps(entries)
                 # Amount of Gaps
@@ -1412,6 +1430,7 @@ class CLI(cmd.Cmd):
                 s += ' -d : temp gaps.\n'
                 s += ' -m : temp gaps.\n'
                 print(s)
+
         elif arg[0] != '':
             print('\nUnknown command \'' + arg[0] + '\'!\n')
         else:
