@@ -1,5 +1,6 @@
 from threading import Thread
 import time
+from types import NoneType
 
 class DBConnectionError(Exception):
     '''
@@ -24,6 +25,11 @@ class DBWritingError(Exception):
     '''
     def __init__(self, e):
         self.args = e.args
+
+class DBNoDataReceivedError(Exception):
+    '''Occurs when a query doesn't return any data'''
+    def __init__(self):
+        pass
 
 class DBTimeoutError(Exception):
     '''Occurs when the database doesn't respond'''
@@ -141,7 +147,7 @@ class TimeoutHelper(Thread):
         while t > 0:
             if self.e:
                 raise self.e
-            elif self.r:
+            elif type(self.r) is not NoneType:
                 return self.r
             else:
                 time.sleep(0.001)
