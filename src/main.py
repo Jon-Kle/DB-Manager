@@ -63,6 +63,10 @@ class Configuration:
     ----------
     data : dict
             content of the config.json file
+    excluded : list
+            all the config values that are sensible and don't belong in the config file
+    secrets : dict
+            content of the dat.json file
 
     Methods
     -------
@@ -71,7 +75,10 @@ class Configuration:
     '''
 
     def __init__(self):
-        '''Open the config.json file and save its content in the attribute "data"'''
+        '''
+        Open the config.json file and the dat.json file
+        ans save its content in the attribute "data"
+        '''
         self.data = None
         self.excluded = []
         # load config file
@@ -92,7 +99,10 @@ class Configuration:
                     self.excluded.append((k, k2))
 
     def save(self):
-        '''Save the content of "data" in the config.json file.'''
+        '''
+        Separate the values of config.json and dat.json 
+        and write them into their assigned files
+        '''
         # remove excluded data
         for e in self.excluded:
             k, k2 = e[0], e[1]
@@ -137,6 +147,9 @@ class Database:
     check_writing_to_db():
             Writes and deleted one line to the database
             to check if writing to the db is possible.
+    get_entries():
+            Reads all entry dates of the database data and returns a list
+            of tuples with the data if any possible entry exists in the db.
     '''
 
     def __init__(self):
@@ -273,7 +286,14 @@ class Database:
         timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
     def get_entries(self):
-        '''Return a list of tuples with all entries and the information if the entry exists in the db'''
+        '''
+        Return a list of tuples with all entries and the information if the entry exists in the db
+
+                Exceptions:
+                        DBConnectionError
+                        DBTimeoutError
+                        DBNoDataReceivedError
+        '''
         def get_data():
             try:
                 db.cursor.execute('SELECT entryDate FROM weatherdata ORDER BY entryDate ASC') # WHERE entryDate >= "2022-08-24 09:47:08"
@@ -306,7 +326,12 @@ class Database:
         return entries
 
     def get_gaps(self, entries):
-        # read dates from file
+        '''
+        Read a list of entries and find all gaps in this list
+
+                Parameters:
+                        entries (list) : list of tuples returned by get_entries()
+        '''
         try:
             f = open('../add_data/.remaining_gaps')
             range_str_l = f.readlines()
@@ -351,7 +376,17 @@ class Database:
         return gaps
 
     def load_file(self, file_name):
-        # read file with name and save data as list or dir
+        '''
+        Read the .csv file with the name file_name and add its contents to the database.
+        
+                Parameters:
+                    file_name (str) : Name of file to be read
+
+                Exceptions:
+                    DBConnectionError
+                    DBTimeoutError
+        '''
+        # read file with name and save data as list
         csv_file = open(file_name, encoding='mac_roman')
         reader = csv.reader(csv_file)
         data = []
@@ -495,7 +530,8 @@ class Api1:
         return r.json()  # parses dict of json response
 
     def get_values(self, time=None):
-        '''Make API1 Request and get selected values to form a list.
+        '''
+        Make API1 Request and get selected values to form a list.
 
                 Parameters:
                         time (str) : overwrites the entryDate value in vlist
@@ -524,11 +560,11 @@ class Api1:
         # date
         vlist['time'] = time
 
-        self.error = None
+        error = None
         def handler():
-            if self.error == None:
+            if error == None:
                 self.error = DataIncompleteError()
-            self.error.missing.append(e.args[0])
+            error.missing.append(e.args[0])
         try:
             # temp
             vlist['temp'] = data['temp_c']
@@ -603,7 +639,7 @@ class Api1:
         except KeyError as e:
             handler()
 
-        if self.error: raise self.error
+        if error: raise error
 
         return list(vlist.values())
 
@@ -740,14 +776,16 @@ class RequestTimer:
             configuration data for requestTimer
     show_msg : bool
             determines if a message is shown when a line is added to the database
+    run : bool
+            indicates when the timer is running
+    trigger_debug_action : bool
+            variable for debugging requests from the timer thread
     next_req : datetime
             time when the next line will be added to the database
     seconds_till_next : int
             seconds till the next requests gets triggered
     thread : Thread
             thread for the timer
-    run : bool
-            indicates when the timer is running
 
     Methods
     -------
@@ -898,10 +936,10 @@ class CLI(cmd.Cmd):
      --- commands ---
     do_request():
             Saves answer of API1 or API2 request as .json file in "requests/".
-    do_timer():
+    do_reqTimer():
             Starts or stops the request timer.
-    do_loadDownloadFiles():
-            • • • under construction • • •
+    do_database():
+            shows gaps in db and provides tools to 'mend' them with download files
     do_config():
             View and change configuration.
     do_debug():
@@ -1108,6 +1146,7 @@ class CLI(cmd.Cmd):
             print('timer stopped!')
 
     def do_database(self, arg):
+        '''Inspect and repair the gaps in the database made by downtime'''
         arg = arg.rstrip('\n').split()
         if len(arg) == 0:
             arg.append('')
