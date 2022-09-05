@@ -1480,92 +1480,161 @@ class CLI(cmd.Cmd):
             print(s)
 
     def do_config(self, arg):
-        '''View and change configuration'''
-        # messages
-        def usage_and_sections_msg(list_str): return 'Usage: config SECTION [KEY VALUE|add VALUE|rm VALUE]\n\n'\
-            'Show and change configuration values\n\n'\
-            'sections:\n' + list_str
-        def list_usage_msg(
-            section): return f'Usage: config {section} [add VALUE|rm VALUE]\n'
-        def dict_usage_msg(
-            section): return f'Usage: config {section} [KEY VALUE]\n'
-        def type_not_supported_msg(section): return f'{section} is a {type(section)}!\n'\
-            'This type is not supported, please change the config file'
-        def section_not_existing_msg(section): return f'Section "{section}" doesn\'t exist!\n'\
-            'Use "config" to view sections\n'
+        #of some debug info is given while using the config command
+        debug = False
+        #start the first input request at the end of def so all defs are assigned
+        section_list = list(config.data.keys())
+        exit_str = "exit"
+        back_str = "back"
+        num_of_options = int(1)
 
-        args = arg.rstrip('\n').split()
+        def section_selection():
+            print_section_str()
+            section_match(input('> '))
 
-        if len(args) == 0:  # config
-            msg = usage_and_sections_msg(
-                self.print_iterable(list(config.data)))
+        def key_selection(name_of_section : str):
+            print_key_str(name_of_section)
+            key_match(input('> '), name_of_section)
+        
+        def value_selection(name_of_section : str, name_of_key : str):
+            print_value_str(name_of_key,name_of_section)
+            set_value(input('> '), name_of_section, name_of_key)
 
-        elif len(args) == 1:  # config SECTION
-            if args[0] not in config.data.keys():  # Section does not exists
-                msg = section_not_existing_msg(args[0])
-            elif isinstance(config.data[args[0]], list):  # Section is a list
-                msg = list_usage_msg(args[0])
-                msg += '\nCurrent values:\n'
-                msg += self.print_iterable(config.data[args[0]])
-            elif isinstance(config.data[args[0]], dict):  # Section is a dictionary
-                msg = dict_usage_msg(args[0])
-                msg += '\nCurrent settings:\n'
-                msg += self.print_iterable(config.data[args[0]])
+
+        def section_match(inp : str):
+            # removes inputs from command history
+            readline.remove_history_item(
+                readline.get_current_history_length()-1
+            )
+
+            if debug: print("DEBUG: sectionMatch called, num_of_options: "+str(num_of_options))
+            num = 0
+            while num < num_of_options-2:
+                #if exit_str then pass and break loop
+                if inp == str(num_of_options) or inp == exit_str or inp == 'q':
+                    break
+                elif inp == str(num+1) or inp == section_list[num]:
+                    #input was found and could be assigned to an section
+                    #you will now get the selection with key you want to change
+                    if debug: print("DEBUG: Success with: "+ str(num+1) + " or: "+ str(section_list[num]))
+                    print_key_str(str(section_list[num]))
+                    key_match(input('> '), section_list[num])
+                    break
+                num += 1
             else:
-                msg = type_not_supported_msg(config.data[args[0]])
+                #when input couldn't be assigned to an section or exit. You will get the section selection again
+                print("\nYou input was wrong. Chose from the list below or use the associated number.")
+                section_selection()
 
-        elif len(args) == 3:  # config SECTION KEY VALUE | config SECTION add/rm VALUE
-            if args[0] in config.data.keys():  # Section exists
-                if isinstance(config.data[args[0]], list):  # Section is a list
-                    if args[1] == 'add':
-                        # check syntax
-                        if args[0] == 'requestTimes' and not self.check_time_syntax(args[2]):
-                            msg = 'Wrong time format!\n\n'\
-                                'syntax must be "hh:mm"\n"x" represents any digit\n'
-                            # More information in help for requestTimer ??
-                        # prevent duplicates
-                        elif args[2] in config.data[args[0]]:
-                            msg = 'Value is already in list!\n'
-                            msg += self.print_iterable(config.data[args[0]])
-                        else:
-                            config.data[args[0]].append(args[2])
-                            config.data[args[0]].sort()
-                            msg = self.print_iterable(config.data[args[0]])
-                    elif args[1] == 'rm':
-                        try:
-                            config.data[args[0]].remove(args[2])
-                        except ValueError:
-                            pass
-                        msg = self.print_iterable(config.data[args[0]])
-                    else:
-                        msg = 'Unknown argument!\n'
-                        msg += list_usage_msg(args[0])
-                # Section is a dictionary
-                elif isinstance(config.data[args[0]], dict):
-                    if args[1] in config.data[args[0]].keys():
-                        if args[1] == 'port':
-                            config.data[args[0]][args[1]] = int(args[2])
-                        elif args[1] == 'show_message':
-                            if args[2] in ['True', 'true', '1']:
-                                config.data[args[0]][args[1]] = True
-                            elif args[2] in ['False', 'false', '0']:
-                                config.data[args[0]][args[1]] = False
-                            else:
-                                pass
-                        else:
-                            config.data[args[0]][args[1]] = args[2]
-                        msg = self.print_iterable(config.data[args[0]])
-                    else:
-                        msg = f'Key "{args[1]}" does not exist!\n'
-                        msg += 'Use "config SECTION" for more info\n'
-                else:
-                    msg = type_not_supported_msg(config.data[args[0]])
+        def key_match(inp : str, name_of_section : str):
+            # removes inputs from command history
+            readline.remove_history_item(
+                readline.get_current_history_length()-1
+            )
+
+            if debug: print("DEBUG: key_match called, num_of_options: "+str(num_of_options))
+            key_list = list(config.data[name_of_section].keys())
+            num = 0
+            while num < num_of_options-2:
+                #if exit_str than pass and break loop
+                if inp == str(num_of_options) or inp == exit_str or inp == 'q':
+                    break
+                #if back_str than back to section selection and break loop
+                if inp == str(num_of_options-1) or inp == back_str or inp == 'b':
+                    section_selection()
+                    break
+                if inp == str(num+1) or inp == key_list[num]:
+                    #input was found and could be assigned to an key
+                    if debug: print("DEBUG: Success with: "+ str(num) + " or: "+ str(key_list[num]))
+                    value_selection(name_of_section, str(key_list[num]))
+                    break
+                num += 1
             else:
-                msg = section_not_existing_msg(args[0])
+                #when input couldn't be assigned to a section or exit. You will get the section selection again
+                print("\nYou input was wrong. Chose from the list below or use the associated number.")
+                key_selection(name_of_section)
+        
+        def set_value(inp, name_of_section, name_of_key):
+            # removes inputs from command history
+            readline.remove_history_item(
+                readline.get_current_history_length()-1
+            )
 
-        else:
-            msg = f'{len(args)} arguments given. Expected 1 or 3\n'
-        print(msg)
+            if debug: print("DEBUG: set_value called, num_of_options: "+str(num_of_options))
+            #if exit_str than pass
+            if inp == "2" or inp == exit_str or inp == 'q':
+                return
+            #if back_str than back to key selection
+            if inp == "1" or inp == back_str or inp == 'b':
+                key_selection(name_of_section)
+                return
+            #if not yet passed, change
+            changeValue(inp, name_of_section, name_of_key)
+
+
+        def changeValue(newValue, name_of_section : str, name_of_key : str):
+            if debug: print("DEBUG: changeValue called, newValue: "+str(newValue))
+            if type(config.data[name_of_section][name_of_key]) == int:
+                try:
+                    config.data[name_of_section][name_of_key] = int(newValue)
+                except:
+                    print("\nThe value couldn't be changed because to type must be a Number!")
+                    value_selection(name_of_section, name_of_key)
+                    return
+            elif type(config.data[name_of_section][name_of_key]) == bool:
+                try:
+                    config.data[name_of_section][name_of_key] = bool(newValue)
+                except:
+                    print("\nThe value couldn't be changed because to type must be a Boolean!")
+                    value_selection(name_of_section, name_of_key)
+                    return
+            else:
+                config.data[name_of_section][name_of_key] = str(newValue)
+
+            print("\nChanged to: "+str(newValue))
+            key_selection(name_of_section)
+
+
+        def print_section_str():
+            #returns a string with a list of all sections from the config + exit
+            out_str = "\nIn which section of the config is the value you want to change?\n"
+            num = 0
+            option_num = len(section_list)
+            while num < option_num:
+                out_str += str(num+1) + " => " + section_list[num] + "\n"
+                num += 1
+            out_str += str(num+1) + " => " + exit_str + "\n"
+            print(out_str, end='')
+            nonlocal num_of_options
+            num_of_options = num+1
+        
+        def print_key_str(name_of_section : str):
+            #gets a list of all keys in the chosen section
+            key_list = list(config.data[name_of_section].keys())
+            #returns a string with a list of all kes from to chosen section from the config + exit and back
+            out_str = "\nIn witch key of the section is the value you want to change?\n"
+            num = 0
+            option_num = len(key_list)
+            while num < option_num:
+                out_str += str(num+1) + " => " + key_list[num] + " :"+str(config.data[name_of_section][str(key_list[num])]) + "\n"
+                num += 1
+            else:
+                out_str += str(num+1) + " => " + back_str + "\n"
+                num += 1
+                out_str += str(num+1) + " => " + exit_str + "\n"
+            print(out_str, end='')
+            nonlocal num_of_options
+            num_of_options = (num+1)
+
+        def print_value_str(name_of_key : str, name_of_section : str):
+            out_str = "\nIf the input isn't an option from below, '"+str(name_of_key)+":"+str(config.data[name_of_section][name_of_key])+"' will be changed to the input.\n"
+            out_str += "1 => " + back_str + "\n"
+            out_str += "2 => " + exit_str + "\n"
+            num_of_options == 2
+            print(out_str, end='')
+
+        #start the interface with the section selection
+        section_selection()
 
     def do_debug(self, arg):
         '''Provides different debug functionalities'''
