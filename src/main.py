@@ -1,4 +1,5 @@
 from customExceptions import * # custom exceptions and TimeoutHelper
+import download_file # module for extracting the range of a download file
 import sys, os, time # System
 from datetime import datetime, timedelta # for names of request files and RequestTimer
 import email.utils # for conversion of rfc822 to datetime
@@ -19,13 +20,13 @@ class TimeUtils:
     get_next_req_time():
             Calculates next_req.
     '''
-    
+
     def get_now(self, string=False):
         '''
         Return a naive datetime object of the CET zone
-        
+
                 parameters:
-                        string (bool) : lets this method return a string of 
+                        string (bool) : lets this method return a string of
                             the datetime object in iso format.
         '''
         now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DTS
@@ -62,6 +63,10 @@ class Configuration:
     ----------
     data : dict
             content of the config.json file
+    excluded : list
+            all the config values that are sensible and don't belong in the config file
+    secrets : dict
+            content of the dat.json file
 
     Methods
     -------
@@ -70,7 +75,10 @@ class Configuration:
     '''
 
     def __init__(self):
-        '''Open the config.json file and save its content in the attribute "data"'''
+        '''
+        Open the config.json file and the dat.json file
+        ans save its content in the attribute "data"
+        '''
         self.data = None
         self.excluded = []
         # load config file
@@ -91,7 +99,10 @@ class Configuration:
                     self.excluded.append((k, k2))
 
     def save(self):
-        '''Save the content of "data" in the config.json file.'''
+        '''
+        Separate the values of config.json and dat.json 
+        and write them into their assigned files
+        '''
         # remove excluded data
         for e in self.excluded:
             k, k2 = e[0], e[1]
@@ -134,8 +145,11 @@ class Database:
     rm_last():
             removes the last entry
     check_writing_to_db():
-            Writes and deleted one line to the database 
+            Writes and deleted one line to the database
             to check if writing to the db is possible.
+    get_entries():
+            Reads all entry dates of the database data and returns a list
+            of tuples with the data if any possible entry exists in the db.
     '''
 
     def __init__(self):
@@ -144,7 +158,7 @@ class Database:
     def check(self):
         '''
         Establish a connection and check if writing works.
-        
+
                 Exceptions:
                         DBConnectionError
                         DBWritingError
@@ -156,7 +170,7 @@ class Database:
     def connect(self):
         '''
         Try to connect with the mysql database.
-        
+
                 Exceptions:
                     DBConnectionError
                     DBTimeoutError
@@ -213,12 +227,12 @@ class Database:
                         DBWritingError
                         DBTimeoutError
         '''
-        queryString = f"INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
- VALUES ('{values[0]}', '{values[1]}', '{values[2]}', '{values[3]}', '{values[4]}', '{values[5]}', '{values[6]}', '{values[7]}');"
+        queryString = "INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+ VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);"
         # this function gets executed in another thread
         def exec():
             try:
-                self.cursor.execute(queryString)
+                self.cursor.execute(queryString, values)
                 self.con.commit()
                 return True, None
             except pymysql.Error as e:
@@ -271,6 +285,169 @@ class Database:
         timeout = TimeoutHelper(exec)
         timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
+    def get_entries(self):
+        '''
+        Return a list of tuples with all entries and the information if the entry exists in the db
+
+                Exceptions:
+                        DBConnectionError
+                        DBTimeoutError
+                        DBNoDataReceivedError
+        '''
+        def get_data():
+            try:
+                db.cursor.execute('SELECT entryDate FROM weatherdata ORDER BY entryDate ASC') # WHERE entryDate >= "2022-08-24 09:47:08"
+                data = db.cursor.fetchall()
+                return data, None
+            except AttributeError as e:
+                return None, DBConnectionError(e)
+        timeout = TimeoutHelper(get_data)
+        data = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+        data = [e['entryDate'] for e in data]
+        if data == []:
+            raise DBNoDataReceivedError()
+
+        entries = []
+        first_str = self.config["mendStartTime"]
+        first_l = first_str.split(sep=",")
+        first = datetime(*[int(s) for s in first_l])
+        last = time_utils.get_next()
+
+        current = first
+        index = 0
+        while current != last:
+            if current == data[index]:
+                entries.append((current, True))
+                if index != len(data)-1:
+                    index += 1
+            else:
+                entries.append((current, False))
+            current += timedelta(minutes=30)
+        return entries
+
+    def get_gaps(self, entries):
+        '''
+        Read a list of entries and find all gaps in this list
+
+                Parameters:
+                        entries (list) : list of tuples returned by get_entries()
+        '''
+        try:
+            f = open('../add_data/.remaining_gaps')
+            range_str_l = f.readlines()
+            # parse into datetime objects
+            range_l = []
+            for l in range_str_l:
+                l.strip('\n')
+                l2 = l.split()
+                range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+            f.close()
+        except FileNotFoundError:
+            range_l = []
+        if len(range_l) > 0:
+            range_index = 0
+        else: 
+            range_index = None
+
+        last_status = True
+        gaps = []
+        entries.append((entries[-1][0]+timedelta(minutes=30), True))
+        for i, e in enumerate(entries):
+            val = e[1]
+            # check if current date is in range of .remaining_gaps file
+            if range_index != None and not e[1]:
+                while e[0] > range_l[range_index][1]:
+                    range_index += 1
+                    if range_index == len(range_l):
+                        range_index -= 1
+                        break
+                if e[0] >= range_l[range_index][0] and e[0] <= range_l[range_index][1]:
+                    val = True
+
+            if not val and last_status: # if current is false but last is true
+                start = e[0]
+                count = 1
+            elif not val and not last_status: # if current is false and last too
+                count += 1
+            elif val and not last_status: # if current is true but last is false
+                end = entries[i-1][0]
+                gaps.append((start, end, count))
+            last_status = val
+        return gaps
+
+    def load_file(self, file_name):
+        '''
+        Read the .csv file with the name file_name and add its contents to the database.
+        
+                Parameters:
+                    file_name (str) : Name of file to be read
+
+                Exceptions:
+                    DBConnectionError
+                    DBTimeoutError
+        '''
+        # read file with name and save data as list
+        csv_file = open(file_name, encoding='mac_roman')
+        reader = csv.reader(csv_file)
+        data = []
+        for row in reader:
+            if reader.line_num > 6:
+                # sort out the lines when nothing is entered ('--')
+                if '--' in [row[0], row[7], row[1], row[10], row[13], row[14], row[23], row[28]]:
+                    continue
+                else:
+                    # transform datetime
+                    date_time = row[0].split(' ')
+                    e_date = date_time[0].split('/')
+                    e_time = date_time[1].split(':')
+                    entry_date = datetime(
+                    int('20' + e_date[2]),
+                    int(e_date[1]),
+                    int(e_date[0]),
+                    int(e_time[0]),
+                    int(e_time[1]))
+                    # correct entry_dates
+                    if entry_date.minute%30 != 0:
+                        difference = entry_date.minute%30
+                        if difference >= 15:
+                            entry_date += timedelta(minutes=30-difference)
+                        else:
+                            entry_date -= timedelta(minutes=difference)
+                    # replace commas with dots
+                    pressure = row[1].replace( ',', '.')
+                    rainrate = row[23].replace( ',', '.')
+                    data.append([entry_date, row[7], pressure, row[10], row[13], row[14], rainrate, row[28]])
+
+        # sort out entries that are not in a gap
+        gaps = self.get_gaps(self.get_entries())
+        gap_index = 0
+        data_index = 0
+        new_data = []
+        while True:
+            if data[data_index][0] < gaps[gap_index][0]:
+                data_index += 1
+            elif data[data_index][0] > gaps[gap_index][1]:
+                gap_index += 1
+            else:
+                data[data_index][0] = data[data_index][0].isoformat(sep=' ')
+                new_data.append(data[data_index])
+                data_index += 1
+            if data_index == len(data):
+                break
+
+        def write_data():
+            try:
+                db.cursor.executemany("INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+ VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);", new_data)
+                db.con.commit()
+                return True, None
+            except AttributeError as e:
+                raise None, DBConnectionError(e)
+        timeout = TimeoutHelper(write_data)
+        timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+
+        return len(new_data)
+
 class Api1:
     '''
     A class to represent the WeatherLink API V1
@@ -291,7 +468,7 @@ class Api1:
     password : str
             the password that is also used to log into the WeatherLink website
     token : str
-            unique API-Token. Dont share with anyone!
+            unique API-Token. don't share with anyone!
             If compromised generate a new one at https://www.weatherlink.com/account
 
     Methods
@@ -299,7 +476,7 @@ class Api1:
     check():
             Check if connection works and if the data is complete and up to date.
     request():
-            Makes an HTTP request with the given values. 
+            Makes an HTTP request with the given values.
             Returns the answer in json format as a dict.
     get_values():
             Extracts the Values for the db from a request and returns them.
@@ -315,7 +492,7 @@ class Api1:
     def check(self):
         '''
         Check if the connection works, the data complete and is up to date.
-        
+
                 Exceptions:
                         ApiConnectionError
                         DataIncompleteError
@@ -327,7 +504,7 @@ class Api1:
     def request(self):
         '''
         Return response from the Api as a dict.
-        
+
                 Exceptions:
                         ApiConnectionError
                         ApiTimeoutError
@@ -353,7 +530,8 @@ class Api1:
         return r.json()  # parses dict of json response
 
     def get_values(self, time=None):
-        '''Make API1 Request and get selected values to form a list.
+        '''
+        Make API1 Request and get selected values to form a list.
 
                 Parameters:
                         time (str) : overwrites the entryDate value in vlist
@@ -382,11 +560,11 @@ class Api1:
         # date
         vlist['time'] = time
 
-        self.error = None
+        error = None
         def handler():
-            if self.error == None:
+            if error == None:
                 self.error = DataIncompleteError()
-            self.error.missing.append(e.args[0])
+            error.missing.append(e.args[0])
         try:
             # temp
             vlist['temp'] = data['temp_c']
@@ -461,7 +639,7 @@ class Api1:
         except KeyError as e:
             handler()
 
-        if self.error: raise self.error
+        if error: raise error
 
         return list(vlist.values())
 
@@ -483,7 +661,7 @@ class Api2:
     key : str
             used to identify the user making the request
     secret : str
-            used to calculate the signature for the request Dont share with anyone! 
+            used to calculate the signature for the request don't share with anyone!
             If compromised generate a new one at https://www.weatherlink.com/account
     station_id : str
             ID which identifies the weather station the data is requested from
@@ -504,7 +682,7 @@ class Api2:
         self.key = self.config['api-key']
         self.secret = self.config['api-secret']
         self.station_id = self.config['stationID']
-    
+
     def check(self):
         '''
         Check the connection with the Api.
@@ -552,7 +730,7 @@ class Api2:
     def get_stations(self):
         '''
         Return IDs and names from weatherlink Stations as dict
-        
+
                 Exceptions:
                         ApiConnectionError
                         ApiTimeoutError
@@ -598,14 +776,16 @@ class RequestTimer:
             configuration data for requestTimer
     show_msg : bool
             determines if a message is shown when a line is added to the database
+    run : bool
+            indicates when the timer is running
+    trigger_debug_action : bool
+            variable for debugging requests from the timer thread
     next_req : datetime
             time when the next line will be added to the database
     seconds_till_next : int
             seconds till the next requests gets triggered
     thread : Thread
             thread for the timer
-    run : bool
-            indicates when the timer is running
 
     Methods
     -------
@@ -756,10 +936,10 @@ class CLI(cmd.Cmd):
      --- commands ---
     do_request():
             Saves answer of API1 or API2 request as .json file in "requests/".
-    do_timer():
+    do_reqTimer():
             Starts or stops the request timer.
-    do_loadDownloadFiles():
-            • • • under construction • • •
+    do_database():
+            shows gaps in db and provides tools to 'mend' them with download files
     do_config():
             View and change configuration.
     do_debug():
@@ -774,14 +954,15 @@ class CLI(cmd.Cmd):
     def preloop(self):
         '''Check if different parts of the program are working and build intro message.'''
 
-        s = '    -- DB-Manager --\n\n'
+        s = '    -- DB-Manager --'
+        print(s)
 
         start_req_timer = True
 
         # api1
         global api1
         api1 = Api1()
-        s += ' API1 request:'
+        s = '\n API1 request:'
         try:
             api1.check()
         except BaseException as e:
@@ -808,10 +989,11 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' successful\n\n'
+        print(s, end='')
 
         # api2 (not used)
         global api2
-        s += ' API2 request:'
+        s = ' API2 request:'
         try:
             api2 = Api2()
         except BaseException as e:
@@ -830,11 +1012,12 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' successful\n\n'
+        print(s, end='')
 
         # database
         global db
         db = Database()
-        s += ' Connection with database:'
+        s = ' Connection with database:'
         try:
             db.check()
         except BaseException as e:
@@ -856,6 +1039,7 @@ class CLI(cmd.Cmd):
         else:
             # msg in chat that all is well
             s += ' established\n\n'
+        print(s, end='')
 
         # request timer
         global req_timer
@@ -863,10 +1047,10 @@ class CLI(cmd.Cmd):
         if start_req_timer:
             req_timer.start()
             # msg in chat
-            s += '  Everything is ok:\n'
+            s = '  Everything is ok:\n'
             s += '   Request timer started.\n\n'
         else:
-            s += "  Request timer didn't start!\n\n"
+            s = "  Request timer didn't start!\n\n"
 
         s += 'Use "help" for a list of commands'
         print(s)
@@ -937,11 +1121,11 @@ class CLI(cmd.Cmd):
             else:
                 print(f'file {name} created')
 
-    def do_timer(self, arg):
+    def do_reqTimer(self, arg):
         '''Start or stop the request timer'''
         global req_timer
         if arg == '':
-            s = 'Usage: timer OPTION\n\n'
+            s = 'Usage: reqTimer OPTION\n\n'
             s += 'Options:\n'
             s += ' start : Starts the request timer\n'
             s += ' stop : Stop the request timer\n\n'
@@ -961,16 +1145,339 @@ class CLI(cmd.Cmd):
             req_timer.run = False
             print('timer stopped!')
 
-    def do_loadDownloadFiles(self, arg): # under construction
-        path = '../add_data_to_db/'
-        file_list = os.listdir(path)
-        dfiles = []
-        for i, e in enumerate(file_list):
-            if os.path.isfile(path + e) and e.startswith('') and e.endswith('.csv'):
-                dfiles.append(e)
+    def do_database(self, arg):
+        '''Inspect and repair the gaps in the database made by downtime'''
+        arg = arg.rstrip('\n').split()
+        if len(arg) == 0:
+            arg.append('')
+        if arg[0] == 'mend':
+            # find available files and show enumerated list of names
+            path = '../add_data/'
+            file_list = os.listdir(path)
+            dfiles = [f for f in file_list if os.path.isfile(path + f) and f.endswith('.csv')]
+            print('\nSelect the file you want to use for mending:')
+            for i, e in enumerate(dfiles):
+                print('', i, '->', e)
+            print(' q -> exit')
+            file_name = ''
+            # select file
+            while True:
+                ans = input('>')
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
+                if ans.isdecimal() and int(ans) in range(len(dfiles)):
+                    file_name = dfiles[int(ans)]
+                    break
+                elif ans == 'q':
+                    break
+            if file_name == '':
+                return
+            
+            try:
+                new_entries = db.load_file(path + file_name)
+                print(f'{new_entries} new entries added!')
+            except DBConnectionError as e:
+                print("Connection to the database was not established!")
+            except DBTimeoutError as e:
+                print("Writing to the Database took too long!")
 
-        for e in dfiles:
-            print(e)
+            def add_df_range_to_file():
+                # store file range in download file
+                # extract start and end from df
+                date_range = download_file.extract_range(file_name)
+
+                # read data from file
+                try:
+                    f = open('../add_data/.remaining_gaps')
+                    range_str_l = f.readlines()
+                    # parse into datetime objects
+                    range_l = []
+                    for l in range_str_l:
+                        l.strip('\n')
+                        l2 = l.split()
+                        range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                    f.close()
+                except FileNotFoundError:
+                    range_l = []
+
+                # merge new range into file
+                new_ranges = []
+                second_placed = False
+                first_placed = False
+                state = None # 0 if first val is before, 1 if first val is in range_l[first_i]
+                first_i = None # index of range_l
+                i = 0
+                while i < len(range_l): # find position of first date in range
+                    if date_range[0] < range_l[i][0]: # before
+                        state = 0
+                        first_i = i
+                        first_placed = True
+                        break
+                    elif date_range[0] < range_l[i][1]: # in
+                        state = 1
+                        first_i = i
+                        first_placed = True
+                        break
+                    new_ranges.append(range_l[i])
+                    i += 1
+                if not first_placed: # after
+                    new_ranges = range_l + [date_range]
+
+                if not first_placed:
+                    pass
+                elif state == None:
+                    new_ranges = [date_range] + range_l
+                else:
+                    while i < len(range_l): # find position of second date in range
+                        if date_range[1] < range_l[i][0]: # before
+                            if state == 0:
+                                new_ranges.append(date_range)
+                            elif state == 1:
+                                new_ranges.append((range_l[first_i][0], date_range[1]))
+                            new_ranges += range_l[i:]
+                            second_placed = True
+                            break
+                        elif date_range[1] < range_l[i][1]: # in
+                            if state == 0:
+                                new_ranges.append((date_range[0], range_l[i][1]))
+                            elif state == 1:
+                                new_ranges.append((range_l[first_i][0], range_l[i][1]))
+                            new_ranges += range_l[i+1:]
+                            second_placed = True
+                            break
+                        i += 1
+                    if not second_placed:
+                        new_ranges.append((date_range[0], date_range[1]))
+
+                # parse data to string
+                range_str = ''
+                for e in new_ranges:
+                    range_str += datetime.isoformat(e[0]) + ' ' + datetime.isoformat(e[1]) + '\n'
+                
+                # save new data in file
+                f = open('../add_data/.remaining_gaps', mode='w')
+                f.write(range_str)
+                f.close
+            add_df_range_to_file()
+
+        elif arg[0] == 'gaps':
+            try:
+                entries = db.get_entries()
+            except DBNoDataReceivedError as e:
+                print('The database is empty!')
+                return
+            if len(arg) == 1:
+                gaps = db.get_gaps(entries)
+                # Amount of Gaps
+                print('\nAmount of Gaps found:', len(gaps))
+                # List of Gaps
+                for e in gaps:
+                    if e[0] == e[1]:
+                        print(' - ' + e[0].isoformat(sep=' '))
+                        continue
+                    s = ' - ' + e[0].isoformat(sep=' ')
+                    s += ' -> ' + e[1].isoformat(sep=' ')
+                    s += ' len: ' + str(e[2])
+                    print(s)
+            elif arg[1] == '-d':
+                # calculate date one month later
+                def next_end(current):
+                    next_month = current.month+1 
+                    if next_month > 12:
+                        next_month = 1
+                    while current.month != next_month:
+                        current += timedelta(minutes=30)
+                    return current
+                # read data from file
+                try:
+                    f = open('../add_data/.remaining_gaps')
+                    range_str_l = f.readlines()
+                    # parse into datetime objects
+                    range_l = []
+                    for l in range_str_l:
+                        l.strip('\n')
+                        l2 = l.split()
+                        range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                    f.close()
+                except FileNotFoundError:
+                    range_l = []
+                if len(range_l) > 0:
+                    range_index = 0
+                else:
+                    range_index = None
+                # values for start and end points
+                start_index = 0
+                char = (' ', '+', '@') # characters used for printing
+                start_of_table = entries[start_index][0].replace(day=1, hour=0, minute=0) # first day in month of start
+                start_of_entries = entries[start_index][0] # date of first entry
+                end_of_entries = entries[-1][0] # date of last entry
+                end_of_table = next_end(end_of_entries).replace(day=1, hour=0, minute=0) # first day in month after end
+                # preparations
+                current = start_of_table
+                end = next_end(start_of_table)
+                empty = True # table starts with data that is not available
+                index = start_index # index to track entries
+                print_table = True
+                while True:
+                    table = ''
+                    start = current # for information above table
+                    while current != end:
+                        if current == start_of_entries: # printing of available values and index counting starts
+                            empty = False
+                        if current == end_of_entries: # ends
+                            empty = True
+                        if empty == True: # printing if no data available
+                            table += char[0]
+                        elif empty == False: # printing if data available
+                            if entries[index][1]:
+                                table += char[2]
+                            else:
+                                if range_index != None:
+                                    while current > range_l[range_index][1]:
+                                        range_index += 1
+                                        if range_index == len(range_l):
+                                            range_index -= 1
+                                            break
+                                    if current >= range_l[range_index][0] and current <= range_l[range_index][1]:
+                                        table += char[0]
+                                    else:
+                                        table += char[1]
+                        if current.hour == 23 and current.minute == 30: # at line end
+                            table += ']\n['
+                        if empty == False:
+                            index += 1
+                        current += timedelta(minutes=30)
+                    if print_table:
+                        # assembling, cleaning and printing table
+                        table = table.rstrip('\n[')
+                        table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
+                        print(table)
+                        print_table = False
+
+                    if current != end_of_table:
+                        ans = input('more?[y/n]:')
+                        readline.remove_history_item(
+                            readline.get_current_history_length()-1
+                        )
+                        if ans == 'y':
+                            end = next_end(current)
+                            print_table = True
+                        elif ans == 'n':
+                            break
+                    else: 
+                        break
+            elif arg[1] == '-m':
+                # calculate date one year later
+                def next_end(current):
+                    next_year = current.year+1
+                    while current.year != next_year:
+                        current += timedelta(days=1)
+                    return current
+                # read data from file
+                try:
+                    f = open('../add_data/.remaining_gaps')
+                    range_str_l = f.readlines()
+                    # parse into datetime objects
+                    range_l = []
+                    for l in range_str_l:
+                        l.strip('\n')
+                        l2 = l.split()
+                        range_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                    f.close()
+                except FileNotFoundError:
+                    range_l = []
+                if len(range_l) > 0:
+                    range_index = 0
+                else:
+                    range_index = None
+                # values for start and end points
+                start_index = 0
+                char = (' ', '+', 'x', '@') # characters used for printing
+                start_of_table = entries[start_index][0].replace(month=1, day=1, hour=0, minute=0) # first day in month of start
+                start_of_entries = entries[start_index][0] # date of first entry
+                end_of_entries = entries[-1][0] # date of last entry
+                end_of_table = next_end(end_of_entries).replace(month=1, day=1, hour=0, minute=0) # first day in month after end
+                # preparations
+                current = start_of_table
+                end = next_end(start_of_table)
+                empty = True # table starts with data that is not available
+                index = start_index # index to track entries
+                print_table = True
+                while True:
+                    table = ''
+                    start = current # for information above table
+                    while current != end:
+                        stat = set()
+                        for e in range(48):
+                            if current == start_of_entries: # printing of available values and index counting starts
+                                empty = False
+                            if current == end_of_entries: # ends
+                                empty = True
+                            if empty == True: # printing if no data available
+                                stat.add(0)
+                            elif empty == False: # printing if data available
+                                if entries[index][1]:
+                                    stat.add(2)
+                                else:
+                                    if range_index != None:
+                                        while entries[index][0] > range_l[range_index][1]:
+                                            range_index += 1
+                                            if range_index == len(range_l):
+                                                range_index -= 1
+                                                break
+                                        if entries[index][0] >= range_l[range_index][0] and entries[index][0] <= range_l[range_index][1]:
+                                            stat.add(0)
+                                        else:
+                                            stat.add(1)
+                            if empty == False:
+                                index += 1
+                            current += timedelta(minutes=30)
+                        if stat in [{0}]: # if no data available
+                                table += char[0]
+                        elif stat in [{1}, {0, 1}]: # if 1 in set
+                            table += char[1]
+                        elif stat in [{1, 2}, {0, 1, 2}]: # if set is 1, 2 => extra char
+                            table += char[2]
+                        elif stat in [{2}, {0, 2}]: # if day contains 2 and 0 => complete
+                            table += char[3]
+                        if current.day == 1 and current.hour == 0 and current.minute == 0: # at line end
+                            table += ']\n['
+                    if print_table:
+                        # assembling, cleaning and printing table
+                        table = table.rstrip('\n[')
+                        table = f'Data from {start} to {end-timedelta(minutes=30)}\n[' + table
+                        print(table)
+                        print_table = False
+
+                    if current != end_of_table:
+                        ans = input('more?[y/n]:')
+                        readline.remove_history_item(
+                            readline.get_current_history_length()-1
+                        )
+                        if ans == 'y':
+                            end = next_end(current)
+                            print_table = True
+                        elif ans == 'n':
+                            break
+                    else: 
+                        break
+            else:
+                print('\nUnknown option \'' + arg[1] + '\'!\n')
+                s = 'Usage: database gaps OPTION\n'
+                s += 'Options:\n'
+                s += ' -d : temp gaps.\n'
+                s += ' -m : temp gaps.\n'
+                print(s)
+
+        elif arg[0] != '':
+            print('\nUnknown command \'' + arg[0] + '\'!\n')
+        else:
+            s = 'Usage: database COMMAND\n\n'
+            s += 'Commands:\n'
+            s += ' mend : select download file\n'
+            s += ' gaps : show gaps in database\n'
+            print(s)
 
     def do_config(self, arg):
         #of some debug info is given while using the config command
@@ -1194,20 +1701,6 @@ class CLI(cmd.Cmd):
         '''Exit program.'''
         quit()
 
-    def do_mend(self, arg):
-        if arg == 'load':
-            print("\ntemp load\n")
-            pass
-        elif arg == 'gaps':
-            print("\ntemp gaps\n")
-            pass
-        else:
-            s = '\nUnknown command \''+arg+'\' Usage: mend COMMAND\n\n'
-            s += 'Commands:\n'
-            s += ' load : temp load.\n'
-            s += ' gaps : temp gaps.\n'
-            print(s)
-
 def restart():
     '''Save the cmd history and restart in a new thread'''
     req_timer.run = False
@@ -1242,5 +1735,3 @@ if __name__ == '__main__':
         readline.parse_and_bind('tab: complete')
     cli.cmdloop()
 
-    # dl = Download()
-    # dl.load('_1-3-22_00-00_1_Day_1647772733_v2.csv')

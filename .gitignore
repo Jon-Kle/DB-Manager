@@ -9,3 +9,5 @@ src/.cmd_history
 rsc/dat.json
 .gitsecret/keys/random_seed
 !*.secret
+add_data/*
+src/download_file.py

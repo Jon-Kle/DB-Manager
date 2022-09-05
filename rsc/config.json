@@ -5,7 +5,8 @@
 		"user": "",
 		"password": "",
 		"database": "my-db",
-		"timeoutMs": 3000
+		"timeoutMs": 3000,
+		"mendStartTime": "2012,7,9,0,0,0"
 	},
 	"Api1": {
 		"url": "https://api.weatherlink.com/v1/NoaaExt.json",
