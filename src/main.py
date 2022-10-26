@@ -442,7 +442,7 @@ class Database:
                 db.con.commit()
                 return True, None
             except AttributeError as e:
-                raise None, DBConnectionError(e)
+                return None, DBConnectionError(e)
         timeout = TimeoutHelper(write_data)
         timeout.timer(self.config['timeoutMs'], DBTimeoutError)
 
