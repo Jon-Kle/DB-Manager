@@ -80,7 +80,7 @@ Um phpMyAdmin zum Laufen zu bringen musst du den Befehl
 ```
 docker run -d --name myadmin -p 8081:80 -e PMA_HOST=mysql-db phpmyadmin
 ```
-ausführen. Wenn der Container läuft kannst du deinen Browser öffnen und 'localhost:8081` eingeben. Nun solltest du eine Website sehen, auf der du dich anmelden musst.
+ausführen. Wenn der Container läuft kannst du deinen Browser öffnen und `localhost:8081` eingeben. Nun solltest du eine Website sehen, auf der du dich anmelden musst.
 
 ### Docker-Networking
 Damit du mit phpMyAdmin auf deine Datenbank zugreifen kannst, musst du die beiden Container miteinander verbinden. Dafür musst du ein Netzwerk einrichten.
