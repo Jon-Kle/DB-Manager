@@ -82,12 +82,12 @@ class Configuration:
         self.data = None
         self.excluded = []
         # load config file
-        f = open('../rsc/config.json')
+        f = open('../res/config.json')
         s = f.read()
         self.data = json.loads(s)
         f.close()
         # load dat file
-        f = open('../rsc/dat.json')
+        f = open('../res/dat.json')
         s = f.read()
         self.secrets = json.loads(s)
 
@@ -110,11 +110,11 @@ class Configuration:
             self.data[k][k2] = ''
 
         # save config file
-        configFile = open('../rsc/config.json', 'w')
+        configFile = open('../res/config.json', 'w')
         json.dump(self.data, configFile, indent='\t')
         configFile.close()
         # save dat file
-        datFile = open('../rsc/dat.json', 'w')
+        datFile = open('../res/dat.json', 'w')
         json.dump(self.secrets, datFile, indent='\t')
         configFile.close()
 
@@ -550,7 +550,8 @@ class Api1:
         # check if data is up to date
         datestr = data['observation_time_rfc822']
         datet = email.utils.parsedate_to_datetime(datestr)
-        datet = datet.replace(tzinfo=None)-timedelta(hours=1)
+        datet = datet.replace(tzinfo=None)-timedelta(hours=1) # !! this does not account for when DTS is active !!
+        # add an hour to the time value returned by the API when DTS is active (winter time)
         now = time_utils.get_now()
         deltat = now - datet
         if deltat > timedelta(minutes= self.config['dataMaxAge']):
