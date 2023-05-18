@@ -18,7 +18,8 @@ Dies ist ein Schulprojekt. Wenn du einen Beitrag leisten willst, bitte lies die 
     - [Einrichten der Datenbank](#einrichten-der-datenbank)
     - [Docker-Container für die Website](#docker-container-für-die-website)
     - [git-secret](#git-secret)
-- Dokumentation
+- Bedienung
+- Entwicklung
 
 ## Über das Projekt
 
@@ -159,5 +160,6 @@ Wenn du es aber für dich alleine verwenden willst gibt es [hier](https://git-se
 Wenn du nun den DB-Manager ausführst, solltest du sehen, ob er sich mit der Datenbank und der API verbinden kann.  
 Wenn irgendetwas nicht funktioniert und du die Lösung für das Problem nicht findest, kontaktiere ein Mitglied des Schulprojekts, oder schreibe ein Issue. Wenn alles läuft, hast du erfolgreich das Setup abgeschlossen. 
 
-<?
-## Dokumentation>
+## Bedienung
+
+## Entwicklung

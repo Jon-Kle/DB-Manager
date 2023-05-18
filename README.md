@@ -18,7 +18,8 @@ This is a school project. If you want to contribute, please read the file [CONTR
     - [Setting up the database](#setting-up-the-database)
     - [Docker container for the Website](#docker-container-for-the-website)
     - [git-secret](#git-secret)
-- Dokumentation
+- Usage
+- Development
 
 ## About this project
 
@@ -157,8 +158,9 @@ If you want to use it on your own, you can find the installation instructions [h
 Now when you run the DB Manager, you should see if it can connect to the database and API.  
 If something doesn't work and you can't find the solution to the problem, contact a member of the school project or write an issue. If everything works, you have successfully completed the setup. 
 
-<?
-## Documentation >
+## Usage
+
+## Development
 
 <?
 running and the cli
