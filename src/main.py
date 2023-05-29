@@ -550,8 +550,8 @@ class Api1:
         # check if data is up to date
         datestr = data['observation_time_rfc822']
         datet = email.utils.parsedate_to_datetime(datestr)
-        datet = datet.replace(tzinfo=None)-timedelta(hours=1) # !! this does not account for when DTS is active !!
-        # add an hour to the time value returned by the API when DTS is active (winter time)
+        # subtract an hour from the time value returned by the API when DTS is active (summer time)
+        datet = datet.replace(tzinfo=None)-timedelta(hours=time.localtime().tm_isdst)
         now = time_utils.get_now()
         deltat = now - datet
         if deltat > timedelta(minutes= self.config['dataMaxAge']):
