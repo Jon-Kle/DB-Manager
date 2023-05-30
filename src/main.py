@@ -529,7 +529,7 @@ class Api1:
 
         return r.json()  # parses dict of json response
 
-    def get_values(self, time=None):
+    def get_values(self, time_=None):
         '''
         Make API1 Request and get selected values to form a list.
 
@@ -542,15 +542,15 @@ class Api1:
                         WStOfflineError
                         ApiTimeoutError
         '''
-        if not time:
-            time = time_utils.get_now(string=True)
+        if not time_:
+            time_ = time_utils.get_now(string=True)
         # request Api1
         data = self.request()
 
         # check if data is up to date
         datestr = data['observation_time_rfc822']
         datet = email.utils.parsedate_to_datetime(datestr)
-        # subtract an hour from the time value returned by the API when DTS is active (summer time)
+        # subtract an hour from the time_ value returned by the API when DTS is active (summer time)
         datet = datet.replace(tzinfo=None)-timedelta(hours=time.localtime().tm_isdst)
         now = time_utils.get_now()
         deltat = now - datet
@@ -559,7 +559,7 @@ class Api1:
 
         vlist = {}
         # date
-        vlist['time'] = time
+        vlist['time'] = time_
 
         error = None
         def handler():

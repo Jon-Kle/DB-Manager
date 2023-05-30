@@ -1,0 +1,114 @@
+{
+	"config": {
+		"host": "",
+		"port": "",
+		"user_email": "",
+		"password": ""
+	},
+	"errors": {
+		"DBConnectionError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Die Verbindung mit der Datenbank ist fehlgeschlagen.",
+				"suggested_solution": "Überprüfen Sie, ob die Datenbank im Betrieb ist und ob alle Netzwerk Einstellungen auf Seiten der Datenbank und Login Informationen auf Seiten des DB-Managers stimmen und versuchen Sie die Verbindung erneut aufzubauen (siehe Dokumentation ...)."
+			},
+			"text_en": {
+				"description": "The connection to the database failed",
+				"suggested_solution": "Check if the database is in operation and if all network settings on the database side and login information on the DB-Manager side are correct and try to reconnect (see documentation ...)."
+			}
+		},
+		"DBWritingError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Das schreiben in die Datenbank hat eine Fehlermeldung verursacht.",
+				"suggested_solution": "Überprüfen Sie, ob die Struktur in der Datenbank stimmt und ob die SQL-Anfrage des DB-Managers das richtige Format hat (siehe Dokumentation ...)."
+			},
+			"text_en": {
+				"description": "Writing to the database caused an error message.",
+				"suggested_solution": "Check if the structure in the database is correct and if the SQL query of the DB-Manager has the correct format (see documentation ...)."
+			}
+		},
+		"DBNoDataReceivedError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Es wurden keine Daten in der Datenbank gefunden.",
+				"suggested_solution": "Überprüfen Sie die Datenbank (siehe Dokumentation ...) und ob die SQL-Anfrage an die richtige Tabelle gerichtet ist (siehe Dokumentation ...)."
+			},
+			"text_en": {
+				"description": "No data was found in the database",
+				"suggested_solution": "Check the database (see documentation ...) and if the SQL query is directed to the correct table (see documentation ...)."
+			}
+		},
+		"DBTimeoutError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Die Datenbank hat nicht geantwortet.",
+				"suggested_solution": "Überprüfen Sie, ob die Datenbank wirklich in Betrieb ist. Wenn die Datenbank nicht auf der Raspberry Pi läuft, überprüfen Sie die Verbindung zwischen der Pi und dem Computer auf dem die Datenbank läuft."
+			},
+			"text_en": {
+				"description": "The database did not respond.",
+				"suggested_solution": "Check if the database is really running. If the database is not running on the Raspberry Pi, check the connection between the Pi and the computer on which the database is running."
+			}
+		},
+		"ApiConnectionError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Die Verbindung mit dem Server von Davis Instruments konnte nicht aufgenommen werden. Somit ist die Api Anfrage gescheitert.",
+				"suggested_solution": "Überprüfen Sie die Internetverbindung des Raspberry Pis. Eventuell ist auch der Server von Davis Instruments gerade nicht erreichbar. Lücken in der Datensammlung können später geschlossen werden (siehe Dokumentation ...)."
+			},
+			"text_en": {
+				"description": "Failed to connect to Davis Instruments server. Thus, the api request failed.",
+				"suggested_solution": "Check the internet connection of the Raspberry Pi. The Davis Instruments server may also be down at the moment. Gaps in the data collection can be closed later (see documentation ...)."
+			}
+		},
+		"DataIncompleteError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Beschreibung: Die Daten, die von der Wetterstation gesendet wurden sind nicht vollständig.\nFolgende Daten fehlen:",
+				"suggested_solution": "Überprüfen Sie die Verbindungen zwischen der Wetterstation und den jeweiligen Messgeräten sowie die Verbindung zwischen der Wetterstation und der Konsole.\nAchtung!: Tritt dieser Fehler auf, werden die Daten nicht mehr ermittelt und gehen verloren solange die Verbindung unterbrochen ist (siehe Dokumentation ...)."
+			},
+			"text_en": {
+				"description": "The data sent by the weather station is not complete.\nThe following data is missing:",
+				"suggested_solution": "Check the connections between the weather station and the respective measuring devices as well as the connection between the weather station and the console.\nAttention!: If this error occurs, the data will not be gathered anymore and will be lost as long as the connection is interrupted (see documentation ...)."
+			}
+		},
+		"WStOfflineError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Die Wetterstation ist nicht mit dem Internet verbunden und sendet daher nicht die neuen Daten.",
+				"suggested_solution": "Überprüfen Sie den Internetanschluss der Wetterstationskonsole."
+			},
+			"text_en": {
+				"description": "The weather station is not connected to the Internet, so it is not sending the new data.",
+				"suggested_solution": "Check the internet connection of the weather station console."
+			}
+		},
+		"ApiTimeoutError": {
+			"count": 0,
+			"active": false,
+			"emails": [],
+			"text_de": {
+				"description": "Der Server von Davis Instruments hat nicht geantwortet.",
+				"suggested_solution": "Überprüfen sie die Qualität der Internetverbindung."
+			},
+			"text_en": {
+				"description": "The Davis Instruments server did not respond.",
+				"suggested_solution": "Check the quality of the internet connection of the Raspberry Pi."
+			}
+		}
+	}
+}
