@@ -162,4 +162,51 @@ Wenn irgendetwas nicht funktioniert und du die Lösung für das Problem nicht fi
 
 ## Bedienung
 
+<?
+### Setting up everything necessary (startscreen) 
+
+### CLI
+
+- alle Funktionen
+
+### Fehlermeldungen
+
+### Datenbank Administration
+
+?>
+
+
 ## Entwicklung
+
+<? 
+### Workflow:
+
+getting ready for developing something new
+
+create branch from main or switch to branch
+
+pulling (if switched to branch)
+
+git secret reveal
+
+developing
+
+git secret hide
+
+commit if finished
+
+push and merge (pull request on github) 
+
+### Funktionsweise des Programmes/Struktur
+
+cli
+
+funktionen
+
+request timer
+
+emails
+
+mend DB
+
+?>
