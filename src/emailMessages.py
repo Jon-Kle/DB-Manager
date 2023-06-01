@@ -6,32 +6,41 @@ from email.utils import formatdate
 from customExceptions import *
 
 def send_warning(error: BaseException):
-    # get template
-    with open('../res/warning-template.html') as f:
+    with open('res/warning-template.html') as f:
         html_template = f.read()
-    ## check error type
+
     error_name = error.__class__.__name__
-    
-    with open('../res/error_msg_config.json') as f:
+
+    with open('res/error_msg_config.json') as f:
         config_data = json.loads(f.read())
 
-    if config_data['errors'][error_name]['active'] == True:
-        return
+    # if config_data['errors'][error_name]['active'] == True:
+        # return # if the status of the error is active, don't send error message
     config_data['errors'][error_name]['active'] = True
     config_data['errors'][error_name]['count'] += 1
-    error_number = config_data['errors'][error_name]['count']
 
+    error_number = config_data['errors'][error_name]['count']
     error_description = config_data['errors'][error_name]['text_de']['description']
     error_solution = config_data['errors'][error_name]['text_de']['suggested_solution']
 
+    optional_list = ''
+    optional_warning = ['', '']
     if error_name == 'DataIncompleteError':
-        # + list of all missing data
-        ...
+        optional_list = ''
+        for m in error.missing:
+            optional_list += f'<li>- {m}</li>'
+        warning_list = config_data['errors']['DataIncompleteError']['text_de']['warning']
+        optional_warning[0] = warning_list[0]
+        optional_warning[1] = warning_list[1]
+        
     
     # assemble html message
     html_template = html_template.replace('{name}', f'{error_name} #{error_number}')
     html_template = html_template.replace('{description}', error_description)
-    html_message = html_template.replace('{solution}', error_solution)
+    html_template = html_template.replace('{solution}', error_solution)
+    html_template = html_template.replace('{opt_list}', optional_list)
+    html_template = html_template.replace('{warning}', optional_warning[0])
+    html_message = html_template.replace('{warning2}', optional_warning[1])
 
     # assemble plain message
     plain_message = f""" --- Wetterstation Fehlermeldung ---
@@ -65,7 +74,8 @@ def send_resolution():
     ...
 
 def debug_email():
-    # print('no debug action programmed')
+    error = DataIncompleteError()
+    error.missing = ['test1', 'getestet2', 'getestinging3', 'and so on4']
     send_warning(DBConnectionError(BaseException()))
 
 def send_email(message: MIMEMultipart, subject: str, receiver_list: list):

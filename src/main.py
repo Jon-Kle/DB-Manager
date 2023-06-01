@@ -860,14 +860,18 @@ class RequestTimer:
         except BaseException as e:
             if isinstance(e, ApiConnectionError):
                 s = f'\n--> {time} - Connection with Api1 failed!\n'
+                # send mail
             elif isinstance(e, DataIncompleteError):
                 s = f'\n--> {time} - Data of request is incomplete!\n'
                 s += ' missing Data:\n'
                 s += cli.print_iterable(e.missing, indent=' - ') + '\n'
+                # send mail
             elif isinstance(e, WStOfflineError):
                 s = f'\n--> {time} - Data of request is outdated!\n'
+                # send mail
             elif isinstance(e, ApiTimeoutError):
                 s = f'\n--> {time} - The request timed out!\n'
+                # send mail
             else: raise e
             s += cli.prompt
             print(s, end='')
@@ -878,10 +882,13 @@ class RequestTimer:
             except BaseException as e:
                 if isinstance(e, DBConnectionError):
                     s = f'\n--> {time} - Connection with db failed!\n'
+                    # send mail
                 elif isinstance(e, DBWritingError):
                     s = f'\n--> {time} - Writing to db failed!\n'
+                    # send mail
                 elif isinstance(e, DBTimeoutError):
                     s = f"\n--> {time} - The db didn't respond!\n"
+                    # send mail
                 else: raise e
                 s += cli.prompt
                 print(s, end='')

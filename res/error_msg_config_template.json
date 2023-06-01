@@ -76,12 +76,12 @@
 			"active": false,
 			"emails": [],
 			"text_de": {
-				"description": "Beschreibung: Die Daten, die von der Wetterstation gesendet wurden sind nicht vollständig.\nFolgende Daten fehlen:",
-				"suggested_solution": "Überprüfen Sie die Verbindungen zwischen der Wetterstation und den jeweiligen Messgeräten sowie die Verbindung zwischen der Wetterstation und der Konsole.\nAchtung!: Tritt dieser Fehler auf, werden die Daten nicht mehr ermittelt und gehen verloren solange die Verbindung unterbrochen ist (siehe Dokumentation ...)."
+				"description": "Beschreibung: Die Daten, die von der Wetterstation gesendet wurden sind nicht vollständig.<br>Folgende Daten fehlen:",
+				"suggested_solution": "Überprüfen Sie die Verbindungen zwischen der Wetterstation und den jeweiligen Messgeräten sowie die Verbindung zwischen der Wetterstation und der Konsole.<br>Achtung!: Tritt dieser Fehler auf, werden die Daten nicht mehr ermittelt und gehen verloren solange die Verbindung unterbrochen ist (siehe Dokumentation ...)."
 			},
 			"text_en": {
-				"description": "The data sent by the weather station is not complete.\nThe following data is missing:",
-				"suggested_solution": "Check the connections between the weather station and the respective measuring devices as well as the connection between the weather station and the console.\nAttention!: If this error occurs, the data will not be gathered anymore and will be lost as long as the connection is interrupted (see documentation ...)."
+				"description": "The data sent by the weather station is not complete.<br>The following data is missing:",
+				"suggested_solution": "Check the connections between the weather station and the respective measuring devices as well as the connection between the weather station and the console.<br>Attention!: If this error occurs, the data will not be gathered anymore and will be lost as long as the connection is interrupted (see documentation ...)."
 			}
 		},
 		"WStOfflineError": {
