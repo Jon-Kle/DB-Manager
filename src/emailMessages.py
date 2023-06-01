@@ -7,12 +7,12 @@ from customExceptions import *
 
 def send_warning(error: BaseException):
     # get template
-    with open('../res/warning-template.html') as f:
+    with open('res/warning-template.html') as f:
         html_template = f.read()
     ## check error type
     error_name = error.__class__.__name__
     
-    with open('../res/error_msg_config.json') as f:
+    with open('res/error_msg_config.json') as f:
         config_data = json.loads(f.read())
 
     if config_data['errors'][error_name]['active'] == True:
@@ -58,7 +58,7 @@ Lösungsvorschlag: {error_solution}
     except BaseException as e:
         print('Mail could not be sent:\n', e)
     else:
-        with open('../res/error_msg_config.json', 'w') as f:
+        with open('res/error_msg_config.json', 'w') as f:
             f.write(json.dumps(config_data, indent='    '))
 
 def send_resolution():
@@ -69,7 +69,7 @@ def debug_email():
     send_warning(DBConnectionError(BaseException()))
 
 def send_email(message: MIMEMultipart, subject: str, receiver_list: list):
-    with open('../res/error_msg_config.json') as f:
+    with open('res/error_msg_config.json') as f:
         data = json.loads(f.read())['config']
         host = data['host']
         port = data['port']

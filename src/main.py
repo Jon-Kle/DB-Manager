@@ -83,12 +83,12 @@ class Configuration:
         self.data = None
         self.excluded = []
         # load config file
-        f = open('../res/config.json')
+        f = open('res/config.json')
         s = f.read()
         self.data = json.loads(s)
         f.close()
         # load dat file
-        f = open('../res/dat.json')
+        f = open('res/dat.json')
         s = f.read()
         self.secrets = json.loads(s)
 
@@ -111,11 +111,11 @@ class Configuration:
             self.data[k][k2] = ''
 
         # save config file
-        configFile = open('../res/config.json', 'w')
+        configFile = open('res/config.json', 'w')
         json.dump(self.data, configFile, indent='\t')
         configFile.close()
         # save dat file
-        datFile = open('../res/dat.json', 'w')
+        datFile = open('res/dat.json', 'w')
         json.dump(self.secrets, datFile, indent='\t')
         configFile.close()
 
@@ -334,7 +334,7 @@ class Database:
                         entries (list) : list of tuples returned by get_entries()
         '''
         try:
-            f = open('../add_data/.remaining_gaps')
+            f = open('add_data/.remaining_gaps')
             range_str_l = f.readlines()
             # parse into datetime objects
             range_l = []
@@ -1097,7 +1097,7 @@ class CLI(cmd.Cmd):
                 dt = datetime.now()
                 times = dt.strftime('%Y.%m.%d_%H:%M:%S')
                 name = f'api1_{times}.json'
-                f = open('../requests/' + name, mode='x')
+                f = open('requests/' + name, mode='x')
                 json.dump(api1.request(), f, indent='\t')
             except FileExistsError:
                 print('You cant send requests multiple times per second!')
@@ -1112,7 +1112,7 @@ class CLI(cmd.Cmd):
                 dt = datetime.now()
                 times = dt.strftime('%Y.%m.%d_%H:%M:%S')
                 name = f'api2_{times}.json'
-                f = open('../requests/' + name, mode='x')
+                f = open('requests/' + name, mode='x')
                 json.dump(api2.request(), f, indent='\t')
             except FileExistsError as e:
                 print('You cant send requests multiple times per second!')
@@ -1154,7 +1154,7 @@ class CLI(cmd.Cmd):
             arg.append('')
         if arg[0] == 'mend':
             # find available files and show enumerated list of names
-            path = '../add_data/'
+            path = 'add_data/'
             file_list = os.listdir(path)
             dfiles = [f for f in file_list if os.path.isfile(path + f) and f.endswith('.csv')]
             print('\nSelect the file you want to use for mending:')
@@ -1191,7 +1191,7 @@ class CLI(cmd.Cmd):
 
                 # read data from file
                 try:
-                    f = open('../add_data/.remaining_gaps')
+                    f = open('add_data/.remaining_gaps')
                     range_str_l = f.readlines()
                     # parse into datetime objects
                     range_l = []
@@ -1258,7 +1258,7 @@ class CLI(cmd.Cmd):
                     range_str += datetime.isoformat(e[0]) + ' ' + datetime.isoformat(e[1]) + '\n'
                 
                 # save new data in file
-                f = open('../add_data/.remaining_gaps', mode='w')
+                f = open('add_data/.remaining_gaps', mode='w')
                 f.write(range_str)
                 f.close
             add_df_range_to_file()
@@ -1293,7 +1293,7 @@ class CLI(cmd.Cmd):
                     return current
                 # read data from file
                 try:
-                    f = open('../add_data/.remaining_gaps')
+                    f = open('add_data/.remaining_gaps')
                     range_str_l = f.readlines()
                     # parse into datetime objects
                     range_l = []
@@ -1378,7 +1378,7 @@ class CLI(cmd.Cmd):
                     return current
                 # read data from file
                 try:
-                    f = open('../add_data/.remaining_gaps')
+                    f = open('add_data/.remaining_gaps')
                     range_str_l = f.readlines()
                     # parse into datetime objects
                     range_l = []
