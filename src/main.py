@@ -8,7 +8,7 @@ import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
 import cmd, readline # Command line
 import csv # Read download-files
-import emailMessages
+import emailMessages # remote error messages
 
 class TimeUtils:
     '''
@@ -850,7 +850,7 @@ class RequestTimer:
             time = self.next_req.isoformat(sep=' ')
 
         try:
-            db.ping()
+            db.ping() # idk for what this is ...
         except (DBConnectionError, DBTimeoutError):
             pass
 
@@ -860,18 +860,18 @@ class RequestTimer:
         except BaseException as e:
             if isinstance(e, ApiConnectionError):
                 s = f'\n--> {time} - Connection with Api1 failed!\n'
-                # send mail
+                emailMessages.send_warning(e)
             elif isinstance(e, DataIncompleteError):
                 s = f'\n--> {time} - Data of request is incomplete!\n'
                 s += ' missing Data:\n'
                 s += cli.print_iterable(e.missing, indent=' - ') + '\n'
-                # send mail
+                emailMessages.send_warning(e)
             elif isinstance(e, WStOfflineError):
                 s = f'\n--> {time} - Data of request is outdated!\n'
-                # send mail
+                emailMessages.send_warning(e)
             elif isinstance(e, ApiTimeoutError):
                 s = f'\n--> {time} - The request timed out!\n'
-                # send mail
+                emailMessages.send_warning(e)
             else: raise e
             s += cli.prompt
             print(s, end='')

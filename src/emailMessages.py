@@ -5,7 +5,7 @@ from email.mime.text import MIMEText
 from email.utils import formatdate
 from customExceptions import *
 
-def send_warning(error: BaseException):
+def send_warning(error: BaseException, debug=False):
     with open('res/warning-template.html') as f:
         html_template = f.read()
 
@@ -14,12 +14,15 @@ def send_warning(error: BaseException):
     with open('res/error_msg_config.json') as f:
         config_data = json.loads(f.read())
 
-    # if config_data['errors'][error_name]['active'] == True:
-        # return # if the status of the error is active, don't send error message
-    config_data['errors'][error_name]['active'] = True
-    config_data['errors'][error_name]['count'] += 1
+    if not debug:
+        if config_data['errors'][error_name]['active'] == True:
+            return # if the status of the error is active, don't send error message
+        config_data['errors'][error_name]['active'] = True
+        config_data['errors'][error_name]['count'] += 1
 
     error_number = config_data['errors'][error_name]['count']
+    if debug:
+        error_number = 'debugging'
     error_description = config_data['errors'][error_name]['text_de']['description']
     error_solution = config_data['errors'][error_name]['text_de']['suggested_solution']
 
@@ -76,7 +79,7 @@ def send_resolution():
 def debug_email():
     error = DataIncompleteError()
     error.missing = ['test1', 'getestet2', 'getestinging3', 'and so on4']
-    send_warning(DBConnectionError(BaseException()))
+    send_warning(DBConnectionError(BaseException()), debug=True)
 
 def send_email(message: MIMEMultipart, subject: str, receiver_list: list):
     with open('../res/error_msg_config.json') as f:
