@@ -11,3 +11,4 @@ res/dat.json
 !*.secret
 add_data/*
 src/download_file.py
+res/error_msg_config.json
