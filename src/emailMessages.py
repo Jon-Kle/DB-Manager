@@ -36,7 +36,6 @@ def send_warning(error: BaseException, debug=False):
         optional_warning[0] = warning_list[0]
         optional_warning[1] = warning_list[1]
         
-    
     # assemble html message
     html_template = html_template.replace('{name}', f'{error_name} #{error_number}')
     html_template = html_template.replace('{description}', error_description)
@@ -70,7 +69,7 @@ Lösungsvorschlag: {error_solution}
     except BaseException as e:
         print('Mail could not be sent:\n', e)
     else:
-        with open('../res/error_msg_config.json', 'w') as f:
+        with open('res/error_msg_config.json', 'w') as f:
             f.write(json.dumps(config_data, indent='    '))
 
 def send_resolution():
@@ -82,7 +81,7 @@ def debug_email():
     send_warning(DBConnectionError(BaseException()), debug=True)
 
 def send_email(message: MIMEMultipart, subject: str, receiver_list: list):
-    with open('../res/error_msg_config.json') as f:
+    with open('res/error_msg_config.json') as f:
         data = json.loads(f.read())['config']
         host = data['host']
         port = data['port']
