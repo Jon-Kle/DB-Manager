@@ -8,6 +8,7 @@ import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
 import cmd, readline # Command line
 import csv # Read download-files
+import emailMessages
 
 class TimeUtils:
     '''
@@ -1684,6 +1685,8 @@ class CLI(cmd.Cmd):
                 em = "Everything is ok"
             em += "\n"
             print(em)
+        elif arg == 'sendMail':
+            emailMessages.debug_email()
         else:
             s = '\nUnknown command \'' + arg + '\' Usage: debug COMMAND\n\n'
             s += 'Commands:\n'
@@ -1692,6 +1695,7 @@ class CLI(cmd.Cmd):
             s += ' rm : Remove last row of db.\n'
             s += ' pingDB : Check and (re-)establish the connection with the database.\n'
             s += ' pingApi : Check the connection with the Api.\n'
+            s += ' sendMail : Call the debug_email() function in emailMessages.py\n'
             print(s)
 
     def do_restart(self, arg):
