@@ -72,7 +72,13 @@ Lösungsvorschlag: {error_solution}
         with open('res/error_msg_config.json', 'w') as f:
             f.write(json.dumps(config_data, indent='    '))
 
-def send_resolution():
+def send_resolution(error_names: list):
+    # read config file
+    # go through list of error names
+    # look if one or more of them are active
+    # deactivate them
+    # formulate message
+    # list all Errors that are solved with name
     ...
 
 def debug_email():
