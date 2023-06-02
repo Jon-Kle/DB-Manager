@@ -121,6 +121,7 @@ class TimeoutHelper(Thread):
     '''
     def __init__(self, func):
         Thread.__init__(self)
+        self.name= 'TimeoutHelper-Thread'
         self.daemon=True
         self.func = func
         self.r = None # values that are returned from func
