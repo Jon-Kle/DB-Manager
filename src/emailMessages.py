@@ -61,7 +61,7 @@ Lösungsvorschlag: {error_solution}
     message.attach(mime_text)
     message.attach(mime_html)
 
-    subject = f"Wetterstation Fehlermeldung: {error_name} #{error_number}"
+    subject = f"{error_name} #{error_number}"
 
     email_list = config_data['errors'][error_name]['emails']
     try:
@@ -72,19 +72,65 @@ Lösungsvorschlag: {error_solution}
         with open('res/error_msg_config.json', 'w') as f:
             f.write(json.dumps(config_data, indent='    '))
 
-def send_resolution(error_names: list):
+def resolved(error_names: list):
+    with open('res/warning-cancelation-template.html') as f:
+        html_template = f.read()
+
     # read config file
-    # go through list of error names
-    # look if one or more of them are active
-    # deactivate them
-    # formulate message
-    # list all Errors that are solved with name
-    ...
+    with open('res/error_msg_config.json') as f:
+        config_data = json.loads(f.read())
+
+    resolved_errors_message = []
+    resolved_errors_names = []
+    for n in error_names:
+        if config_data['errors'][n]['active']:
+            config_data['errors'][n]['active'] = False # deactivate them
+            resolved_errors_message.append(f'{n} #{config_data["errors"][n]["count"]}')
+            resolved_errors_names.append(n)
+    if not resolved_errors_names:
+        return
+    html_error_list = ''
+    text_error_list = ''
+    for r in resolved_errors_message:
+        html_error_list += f'<li>- {r}</li>'
+        text_error_list += f'- {r}\n'
+    
+    html_message = html_template.replace('{error_list}', html_error_list)
+    plain_message = f""" --- Wetterstation Fehlermeldung behoben ---
+    
+    Folgende Fehler wurden behoben:
+    {text_error_list}
+    """
+
+    message = MIMEMultipart('alternative')
+    mime_text = MIMEText(plain_message, 'plain')
+    mime_html = MIMEText(html_message, 'html')
+
+    message.attach(mime_text)
+    message.attach(mime_html)
+    
+    subject = 'Fehler behoben: ' + ', '.join(resolved_errors_names)
+
+    # create maillist from multiple lists
+    email_list = set()
+    for e in resolved_errors_names:
+        new_emails = config_data['errors'][e]['emails']
+        email_list.update(new_emails)
+    email_list = list(email_list)
+    
+    try:
+        send_email(message, subject, email_list)
+    except BaseException as e:
+        print('resolved Mail could not be sent:\n', e)
+    else:
+        with open('res/error_msg_config.json', 'w') as f:
+            f.write(json.dumps(config_data, indent='    '))
 
 def debug_email():
-    error = DataIncompleteError()
-    error.missing = ['test1', 'getestet2', 'getestinging3', 'and so on4']
-    send_warning(DBConnectionError(BaseException()), debug=True)
+    # error = DataIncompleteError()
+    # error.missing = ['test1', 'getestet2', 'getestinging3', 'and so on4']
+    # send_warning(DBConnectionError(BaseException()), debug=True)
+    resolved(['DBConnectionError', 'DBWritingError'])
 
 def send_email(message: MIMEMultipart, subject: str, receiver_list: list):
     with open('res/error_msg_config.json') as f:
