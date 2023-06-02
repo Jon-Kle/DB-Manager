@@ -109,7 +109,7 @@ def resolved(error_names: list):
     message.attach(mime_text)
     message.attach(mime_html)
     
-    subject = 'Fehler behoben: ' + ', '.join(resolved_errors_names)
+    subject = 'Fehler behoben: ' + ', '.join(resolved_errors_message)
 
     # create maillist from multiple lists
     email_list = set()
