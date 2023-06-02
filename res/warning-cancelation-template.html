@@ -4,6 +4,7 @@
         <style>
         .title {
             background-color: hsl(126deg 87% 33%);
+            color: white;
             display: table-cell;
             vertical-align: middle;
             height: 2cm;
@@ -16,13 +17,21 @@
             text-indent: 1cm;
         }
         .body {
-            background-color: grey;
+            background-color: #ababab;
             margin-top: 1mm;
             border-radius: 1mm;
             font-family: sans-serif;
         }
         .body .text {
+            font-size: 13pt;
             padding-left: 2ch;
+            padding-bottom: 7ch;
+        }
+        ul {
+            margin-block-start: 0.5ch;
+            margin-block-end: 0ch;
+            padding-left: 0.5ch;
+            list-style: none;
         }
         </style>
 
@@ -34,18 +43,10 @@
         <div class="body">
             <div class="text">
                 <br>
-                <u>Name:</u><br>
-                 {name} <br>
-                 <br>
-                <u>Beschreibung:</u><br>
-                 {description} <br>
-                 <br>
-                <u>Lösungsvorschlag:</u><br>
-                 {fix} <br>
-                 <br>
-                 <br>
-                 <br>
-                 <br>
+                Folgende Fehler wurden behoben:<br>
+                <ul>
+                    {error_list}
+                </ul>
             </div>
         </div>
     </body>

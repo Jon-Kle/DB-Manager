@@ -8,7 +8,7 @@ import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
 import cmd, readline # Command line
 import csv # Read download-files
-import emailMessages
+import emailMessages # remote error messages
 
 class TimeUtils:
     '''
@@ -178,23 +178,18 @@ class Database:
         '''
         self.con = None
         self.cursor = None
-        # this function gets executed in another thread
-        def con():
-            try:
-                c = pymysql.connect(
-                    port=self.config['port'],
-                    host=self.config['host'],
-                    user=self.config['user'],
-                    password=self.config['password'],
-                    database=self.config['database'],
-                    cursorclass=pymysql.cursors.DictCursor)
-                return c, None
-            except pymysql.err.OperationalError as e:
-                return None, DBConnectionError(e)
-        timeout = TimeoutHelper(con)
-        # this starts the thread with con() and a timer
-        # finishes the timer before the function is executed, a timeout error is raised
-        self.con = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+
+        try:
+            self.con = pymysql.connect(
+                port=self.config['port'],
+                host=self.config['host'],
+                user=self.config['user'],
+                password=self.config['password'],
+                database=self.config['database'],
+                cursorclass=pymysql.cursors.DictCursor,
+                read_timeout=int(self.config['timeoutMs']/1000))
+        except pymysql.err.OperationalError as e:
+            raise DBConnectionError(e)
         self.cursor = self.con.cursor()
 
     def ping(self):
@@ -850,45 +845,63 @@ class RequestTimer:
             time = self.next_req.isoformat(sep=' ')
 
         try:
-            db.ping()
+            db.ping() # idk for what this is ...
         except (DBConnectionError, DBTimeoutError):
             pass
-
+        
+        db_errors_resolved = False
+        api_errors_resolved = False
         try:
             # get Values
             values = api1.get_values(time)
         except BaseException as e:
             if isinstance(e, ApiConnectionError):
                 s = f'\n--> {time} - Connection with Api1 failed!\n'
+                emailMessages.send_warning(e)
             elif isinstance(e, DataIncompleteError):
                 s = f'\n--> {time} - Data of request is incomplete!\n'
                 s += ' missing Data:\n'
                 s += cli.print_iterable(e.missing, indent=' - ') + '\n'
+                emailMessages.send_warning(e)
             elif isinstance(e, WStOfflineError):
                 s = f'\n--> {time} - Data of request is outdated!\n'
+                emailMessages.send_warning(e)
             elif isinstance(e, ApiTimeoutError):
                 s = f'\n--> {time} - The request timed out!\n'
+                emailMessages.send_warning(e)
             else: raise e
             s += cli.prompt
             print(s, end='')
         else:
+            api_errors_resolved = True
             try:
                 # add row to db
                 db.add_row(values) # try
             except BaseException as e:
                 if isinstance(e, DBConnectionError):
                     s = f'\n--> {time} - Connection with db failed!\n'
+                    emailMessages.send_warning(e)
                 elif isinstance(e, DBWritingError):
                     s = f'\n--> {time} - Writing to db failed!\n'
+                    emailMessages.send_warning(e)
                 elif isinstance(e, DBTimeoutError):
                     s = f"\n--> {time} - The db didn't respond!\n"
+                    emailMessages.send_warning(e)
                 else: raise e
                 s += cli.prompt
                 print(s, end='')
             else:
+                db_errors_resolved = True
                 # message
                 if self.show_msg and msg:
                     self.line_msg(time, values, debug=debug)
+        if db_errors_resolved or api_errors_resolved:
+            resolved_list = []
+            if api_errors_resolved:
+                resolved_list.extend(['ApiConnectionError', 'DataIncompleteError', 'WStOfflineError', 'ApiTimeoutError'])
+            if db_errors_resolved:
+                resolved_list.extend(['DBConnectionError', 'DBWritingError', 'DBTimeoutError'])
+            emailMessages.resolved(resolved_list)
 
     def line_msg(self, time, values, debug=False):
         '''Build message for when a new line is added to the database.
