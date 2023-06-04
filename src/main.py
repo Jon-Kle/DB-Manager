@@ -421,7 +421,7 @@ class Database:
                     int(e_date[0]),
                     int(e_time[0]),
                     int(e_time[1]))
-                    # correct entry_dates
+                    # correct entry_dates to be always at the half hour
                     if entry_date.minute%30 != 0:
                         difference = entry_date.minute%30
                         if difference >= 15:
@@ -1214,6 +1214,7 @@ class CLI(cmd.Cmd):
             print('timer stopped!')
 
     def do_database(self, arg):
+        log = getLogger('DATABASE')
         '''Inspect and repair the gaps in the database made by downtime'''
         arg = arg.rstrip('\n').split()
         if len(arg) == 0:
@@ -1241,13 +1242,17 @@ class CLI(cmd.Cmd):
                     break
             if file_name == '':
                 return
+            log.info('file chosen for mending: ' + file_name)
             
             try:
                 new_entries = db.load_file(path + file_name)
+                log.info(f'{new_entries} entries added')
                 print(f'{new_entries} new entries added!')
             except DBConnectionError as e:
+                log.error('connection failed: DBConnectionError')
                 print("Connection to the database was not established!")
             except DBTimeoutError as e:
+                log.error('connection failed: DBTimeoutError')
                 print("Writing to the Database took too long!")
 
             def add_df_range_to_file():
@@ -1548,7 +1553,7 @@ class CLI(cmd.Cmd):
             print(s)
 
     def do_config(self, arg):
-        #of some debug info is given while using the config command
+        #if some debug info is given while using the config command
         debug = False
         #start the first input request at the end of def so all defs are assigned
         section_list = list(config.data.keys())
@@ -1641,10 +1646,12 @@ class CLI(cmd.Cmd):
 
 
         def changeValue(newValue, name_of_section : str, name_of_key : str):
+            log = getLogger('CONFIG')
             if debug: print("DEBUG: changeValue called, newValue: "+str(newValue))
             if type(config.data[name_of_section][name_of_key]) == int:
                 try:
                     config.data[name_of_section][name_of_key] = int(newValue)
+                    log.info(f'value {name_of_key} in section {name_of_section} changed to int {newValue}')
                 except:
                     print("\nThe value couldn't be changed because to type must be a Number!")
                     value_selection(name_of_section, name_of_key)
@@ -1652,12 +1659,14 @@ class CLI(cmd.Cmd):
             elif type(config.data[name_of_section][name_of_key]) == bool:
                 try:
                     config.data[name_of_section][name_of_key] = bool(newValue)
+                    log.info(f'value {name_of_key} in section {name_of_section} changed to bool {newValue}')
                 except:
                     print("\nThe value couldn't be changed because to type must be a Boolean!")
                     value_selection(name_of_section, name_of_key)
                     return
             else:
                 config.data[name_of_section][name_of_key] = str(newValue)
+                log.info(f'value {name_of_key} in section {name_of_section} changed to str {newValue}')
 
             print("\nChanged to: "+str(newValue))
             key_selection(name_of_section)
