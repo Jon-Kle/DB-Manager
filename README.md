@@ -161,10 +161,3 @@ If something doesn't work and you can't find the solution to the problem, contac
 ## Usage
 
 ## Development
-
-<?
-running and the cli
-the request timer
-errors
-the config files>
-</?>

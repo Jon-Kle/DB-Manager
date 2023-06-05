@@ -162,23 +162,74 @@ Wenn irgendetwas nicht funktioniert und du die Lösung für das Problem nicht fi
 
 ## Bedienung
 
-<?
-### Setting up everything necessary (startscreen) 
+### Der Startbildschirm
 
-### CLI
+### Command Line Interface
 
-- alle Funktionen
+- api1
+    - ping
+- api2
+    - ping
+- database
+    - ping
+    - gaps
+    - mend
+- reqTimer
+    - silent
+    - show
+    - start
+    - stop
+- config
+    - db
+        - host
+        - port
+        - user
+        - password
+        - database
+        - timeoutMs
+        - mendStartTime
+    - Api1
+        - url
+        - user
+        - pass
+        - apiToken
+        - timeoutMs
+        - dataMaxAge
+    - Api2
+        - url
+        - api-key
+        - api-secret
+        - stationID
+        - timeoutMs
+    - requestTimer
+        - timer_at_startup
+        - show_message
+- debug
+    - request
+        - api1
+        - api2
+    - add
+    - dAdd
+    - rm
+    - sendMail
+- restart
+- quit
 
 ### Fehlermeldungen
+- DBConnectionError
+- DBWritingError
+- DBNoDataReceivedError
+- DBTimeoutError
+- ApiConnectionError
+- DataIncompleteError
+- WStOfflineError
+- ApiTimeoutError
 
 ### Datenbank Administration
-
-?>
 
 
 ## Entwicklung
 
-<? 
 ### Workflow:
 
 getting ready for developing something new
@@ -199,9 +250,11 @@ push and merge (pull request on github)
 
 ### Funktionsweise des Programmes/Struktur
 
-cli
+grundlegende Struktur
 
-funktionen
+<?
+cli
+    funktionen
 
 request timer
 
@@ -209,4 +262,5 @@ emails
 
 mend DB
 
+deep dive:
 ?>
