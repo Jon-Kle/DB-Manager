@@ -8,7 +8,10 @@ import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
 import cmd, readline # Command line
 import csv # Read download-files
-import emailMessages
+import emailMessages # remote error messages
+import logging
+from logging import getLogger
+from logging.handlers import RotatingFileHandler
 
 class TimeUtils:
     '''
@@ -30,13 +33,13 @@ class TimeUtils:
                         string (bool) : lets this method return a string of
                             the datetime object in iso format.
         '''
-        now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DTS
+        now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DST
         now = now.replace(microsecond=0)
         if string:
             return now.isoformat(sep=' ')
         return now
 
-    def get_next(self, now=None):
+    def get_next(self, now=None) -> datetime:
         '''
         Calculate time of next request.
 
@@ -98,6 +101,22 @@ class Configuration:
                 if self.data[k][k2] == '':
                     self.data[k][k2] = self.secrets[k][k2]
                     self.excluded.append((k, k2))
+
+    def init_logging(self):
+        log_handler = RotatingFileHandler(
+            filename='DB-Manager.log',
+            maxBytes=10*1024*1024, #10MiB
+            backupCount=5
+        )
+        log_formatter = logging.Formatter(
+            fmt='%(asctime)s %(levelname)s %(name)s: %(msg)s', # %(lineno)d %(funcName)s %(threadName)s
+            datefmt='%d.%m.%Y %H:%M:%S'
+        )
+        log_handler.setFormatter(log_formatter)
+        logging.basicConfig(
+            level=logging.INFO,
+            handlers=[log_handler]
+        )
 
     def save(self):
         '''
@@ -178,23 +197,18 @@ class Database:
         '''
         self.con = None
         self.cursor = None
-        # this function gets executed in another thread
-        def con():
-            try:
-                c = pymysql.connect(
-                    port=self.config['port'],
-                    host=self.config['host'],
-                    user=self.config['user'],
-                    password=self.config['password'],
-                    database=self.config['database'],
-                    cursorclass=pymysql.cursors.DictCursor)
-                return c, None
-            except pymysql.err.OperationalError as e:
-                return None, DBConnectionError(e)
-        timeout = TimeoutHelper(con)
-        # this starts the thread with con() and a timer
-        # finishes the timer before the function is executed, a timeout error is raised
-        self.con = timeout.timer(self.config['timeoutMs'], DBTimeoutError)
+
+        try:
+            self.con = pymysql.connect(
+                port=self.config['port'],
+                host=self.config['host'],
+                user=self.config['user'],
+                password=self.config['password'],
+                database=self.config['database'],
+                cursorclass=pymysql.cursors.DictCursor,
+                read_timeout=int(self.config['timeoutMs']/1000))
+        except pymysql.err.OperationalError as e:
+            raise DBConnectionError(e)
         self.cursor = self.con.cursor()
 
     def ping(self):
@@ -407,7 +421,7 @@ class Database:
                     int(e_date[0]),
                     int(e_time[0]),
                     int(e_time[1]))
-                    # correct entry_dates
+                    # correct entry_dates to be always at the half hour
                     if entry_date.minute%30 != 0:
                         difference = entry_date.minute%30
                         if difference >= 15:
@@ -551,7 +565,7 @@ class Api1:
         # check if data is up to date
         datestr = data['observation_time_rfc822']
         datet = email.utils.parsedate_to_datetime(datestr)
-        # subtract an hour from the time_ value returned by the API when DTS is active (summer time)
+        # subtract an hour from the time_ value returned by the API when DST is active (summer time)
         datet = datet.replace(tzinfo=None)-timedelta(hours=time.localtime().tm_isdst)
         now = time_utils.get_now()
         deltat = now - datet
@@ -810,7 +824,9 @@ class RequestTimer:
 
     def start(self):
         '''Initiate thread with timer().'''
+        log = getLogger('REQUEST TIMER')
         self.next_req = time_utils.get_next()
+        log.info('next request: ' + (self.next_req + timedelta(hours=time.localtime().tm_isdst)).isoformat(sep=' '))
         self.seconds_till_next = (self.next_req-time_utils.get_now()).seconds
 
         self.thread = Thread(name='timer', target=self.timer, daemon=True)
@@ -818,19 +834,24 @@ class RequestTimer:
 
     def timer(self):
         '''Time requests.'''
+        log = getLogger('REQUEST TIMER')
         i = self.seconds_till_next + 1
         self.run = True
+        self.msg = config.data['requestTimer']['show_message']
         while self.run:
             if self.trigger_debug_action:
                 self.trigger_debug_action = False
+                log.info('starting debug request')
                 self.make_req(time=time_utils.get_now(string=True), debug=True)
             if i > 0:
                 time.sleep(1)
                 i -= 1
             else:
-                self.make_req()
+                log.info('starting request')
+                self.make_req(msg=self.msg)
                 # calculate next request
                 self.next_req = time_utils.get_next()
+                log.info('next request: ' + (self.next_req + timedelta(hours=time.localtime().tm_isdst)).isoformat(sep=' '))
                 self.seconds_till_next = (self.next_req-time_utils.get_now()).seconds
                 i = self.seconds_till_next + 1
 
@@ -846,49 +867,80 @@ class RequestTimer:
                         msg (bool) : determines if a message for the added line gets shown
                         debug (bool) : gets passed on to line_msg()
         '''
+        log = getLogger('REQUEST TIMER')
+
         if time == None:
             time = self.next_req.isoformat(sep=' ')
 
         try:
-            db.ping()
+            db.ping() # reconnect to database if not connected
         except (DBConnectionError, DBTimeoutError):
             pass
-
+        
+        db_errors_resolved = False
+        api_errors_resolved = False
         try:
             # get Values
             values = api1.get_values(time)
         except BaseException as e:
+            log.error('API1 request failed: ' + e.__class__.__name__)
             if isinstance(e, ApiConnectionError):
                 s = f'\n--> {time} - Connection with Api1 failed!\n'
+                emailMessages.send_warning(e)
             elif isinstance(e, DataIncompleteError):
+                log.error('missing data: ' + str(e.missing))
                 s = f'\n--> {time} - Data of request is incomplete!\n'
                 s += ' missing Data:\n'
                 s += cli.print_iterable(e.missing, indent=' - ') + '\n'
+                emailMessages.send_warning(e)
             elif isinstance(e, WStOfflineError):
+                log.error('last online: ' + e.last_online.isoformat(sep=" "))
                 s = f'\n--> {time} - Data of request is outdated!\n'
+                s += ' last online: '
+                s += e.last_online.isoformat(sep=" ") + '\n'
+                emailMessages.send_warning(e)
             elif isinstance(e, ApiTimeoutError):
                 s = f'\n--> {time} - The request timed out!\n'
+                emailMessages.send_warning(e)
             else: raise e
+            log.error('request failed')
             s += cli.prompt
             print(s, end='')
         else:
+            log.info('API1 request OK')
+            api_errors_resolved = True
             try:
                 # add row to db
                 db.add_row(values) # try
             except BaseException as e:
+                log.error('Database connection failed: ' + e.__class__.__name__)
                 if isinstance(e, DBConnectionError):
                     s = f'\n--> {time} - Connection with db failed!\n'
+                    emailMessages.send_warning(e)
                 elif isinstance(e, DBWritingError):
                     s = f'\n--> {time} - Writing to db failed!\n'
+                    emailMessages.send_warning(e)
                 elif isinstance(e, DBTimeoutError):
                     s = f"\n--> {time} - The db didn't respond!\n"
+                    emailMessages.send_warning(e)
                 else: raise e
+                log.error('request failed')
                 s += cli.prompt
                 print(s, end='')
             else:
+                log.info('Database connection OK')
+                db_errors_resolved = True
                 # message
                 if self.show_msg and msg:
                     self.line_msg(time, values, debug=debug)
+                log.info('request successful')
+        if db_errors_resolved or api_errors_resolved:
+            resolved_list = []
+            if api_errors_resolved:
+                resolved_list.extend(['ApiConnectionError', 'DataIncompleteError', 'WStOfflineError', 'ApiTimeoutError'])
+            if db_errors_resolved:
+                resolved_list.extend(['DBConnectionError', 'DBWritingError', 'DBTimeoutError'])
+            emailMessages.resolved(resolved_list)
 
     def line_msg(self, time, values, debug=False):
         '''Build message for when a new line is added to the database.
@@ -956,10 +1008,13 @@ class CLI(cmd.Cmd):
     def preloop(self):
         '''Check if different parts of the program are working and build intro message.'''
 
+        log = getLogger('STARTUP')
+
+
         s = '    -- DB-Manager --'
         print(s)
 
-        start_req_timer = True
+        start_req_timer = config.data['requestTimer']['timer_at_startup']
 
         # api1
         global api1
@@ -968,6 +1023,7 @@ class CLI(cmd.Cmd):
         try:
             api1.check()
         except BaseException as e:
+            log.error('API1 check failed: ' + e.__class__.__name__)
             # msg in chat
             s += ' failed!\n'
             if isinstance(e, ApiConnectionError):
@@ -975,12 +1031,14 @@ class CLI(cmd.Cmd):
                 s += '  Make sure, the connection to the internet is working.\n'
                 s += '  It could also be that the API is offline.\n\n'
             elif isinstance(e, DataIncompleteError):
+                log.error('missing data: ' + str(e.missing))
                 s += '  Some data values are missing:\n'
                 s += self.print_iterable(e.missing, indent='  - ')
                 s += '  Make sure, the wires to the different sensors are properly connected!\n\n'
             elif isinstance(e, WStOfflineError):
+                log.error('last online: ' + e.last_online.isoformat(sep=" "))
                 s += '  The data is outdated!\n'
-                s += f'  - {e.last_online.isoformat(sep=" ")}\n'
+                s += f'   last online: {e.last_online.isoformat(sep=" ")}\n'
                 s += '  Make sure, the weather-station is connected to the internet!\n\n'
             elif isinstance(e, ApiTimeoutError):
                 s += '  The Api1 request timed out!\n'
@@ -989,6 +1047,7 @@ class CLI(cmd.Cmd):
                 raise e
             start_req_timer = False
         else:
+            log.info('API1 OK')
             # msg in chat that all is well
             s += ' successful\n\n'
         print(s, end='')
@@ -999,6 +1058,7 @@ class CLI(cmd.Cmd):
         try:
             api2 = Api2()
         except BaseException as e:
+            log.error('API2 check failed: ' + e.__class__.__name__)
             # msg in chat
             s += ' failed! (not used)\n'
             if isinstance(e, ApiConnectionError):
@@ -1012,6 +1072,7 @@ class CLI(cmd.Cmd):
                 raise e
             start_req_timer = False
         else:
+            log.info('API2 OK')
             # msg in chat that all is well
             s += ' successful\n\n'
         print(s, end='')
@@ -1023,6 +1084,7 @@ class CLI(cmd.Cmd):
         try:
             db.check()
         except BaseException as e:
+            log.error('Database check failed: ' + e.__class__.__name__)
             # msg in chat
             s += ' failed!\n'
             if isinstance(e, DBConnectionError):
@@ -1039,6 +1101,7 @@ class CLI(cmd.Cmd):
                 raise e
             start_req_timer = False
         else:
+            log.info('Database OK')
             # msg in chat that all is well
             s += ' established\n\n'
         print(s, end='')
@@ -1047,11 +1110,13 @@ class CLI(cmd.Cmd):
         global req_timer
         req_timer = RequestTimer()
         if start_req_timer:
+            log.info('start RequestTimer')
             req_timer.start()
             # msg in chat
             s = '  Everything is ok:\n'
             s += '   Request timer started.\n\n'
         else:
+            log.info('RequestTimer did not start')
             s = "  Request timer didn't start!\n\n"
 
         s += 'Use "help" for a list of commands'
@@ -1125,10 +1190,13 @@ class CLI(cmd.Cmd):
 
     def do_reqTimer(self, arg):
         '''Start or stop the request timer'''
+        log = getLogger('REQUEST TIMER')
         global req_timer
         if arg == '':
             s = 'Usage: reqTimer OPTION\n\n'
             s += 'Options:\n'
+            s += ' silent : hides request messages\n'
+            a += ' show : shows request messages\n'
             s += ' start : Starts the request timer\n'
             s += ' stop : Stop the request timer\n\n'
             s += 'Current state: '
@@ -1137,17 +1205,30 @@ class CLI(cmd.Cmd):
             else:
                 s += 'stopped!\n'
             print(s)
+        elif arg == 'silent':
+            if not req_timer.msg:
+                print('already silent')
+            else:
+                req_timer.msg = False
+        elif arg == 'show':
+            if req_timer.msg:
+                print('already visible')
+            else:
+                req_timer.msg = True
         elif arg == 'start':
             if req_timer.run == False:
                 req_timer.start()
+                log.info('RequestTimer started')
                 print('timer started!')
             else:
                 print('timer has already been started!')
         elif arg == 'stop':
             req_timer.run = False
+            log.info('RequestTimer stopped')
             print('timer stopped!')
 
     def do_database(self, arg):
+        log = getLogger('DATABASE')
         '''Inspect and repair the gaps in the database made by downtime'''
         arg = arg.rstrip('\n').split()
         if len(arg) == 0:
@@ -1175,13 +1256,17 @@ class CLI(cmd.Cmd):
                     break
             if file_name == '':
                 return
+            log.info('file chosen for mending: ' + file_name)
             
             try:
                 new_entries = db.load_file(path + file_name)
+                log.info(f'{new_entries} entries added')
                 print(f'{new_entries} new entries added!')
             except DBConnectionError as e:
+                log.error('connection failed: DBConnectionError')
                 print("Connection to the database was not established!")
             except DBTimeoutError as e:
+                log.error('connection failed: DBTimeoutError')
                 print("Writing to the Database took too long!")
 
             def add_df_range_to_file():
@@ -1482,7 +1567,7 @@ class CLI(cmd.Cmd):
             print(s)
 
     def do_config(self, arg):
-        #of some debug info is given while using the config command
+        #if some debug info is given while using the config command
         debug = False
         #start the first input request at the end of def so all defs are assigned
         section_list = list(config.data.keys())
@@ -1575,10 +1660,12 @@ class CLI(cmd.Cmd):
 
 
         def changeValue(newValue, name_of_section : str, name_of_key : str):
+            log = getLogger('CONFIG')
             if debug: print("DEBUG: changeValue called, newValue: "+str(newValue))
             if type(config.data[name_of_section][name_of_key]) == int:
                 try:
                     config.data[name_of_section][name_of_key] = int(newValue)
+                    log.info(f'value {name_of_key} in section {name_of_section} changed to int {newValue}')
                 except:
                     print("\nThe value couldn't be changed because to type must be a Number!")
                     value_selection(name_of_section, name_of_key)
@@ -1586,12 +1673,14 @@ class CLI(cmd.Cmd):
             elif type(config.data[name_of_section][name_of_key]) == bool:
                 try:
                     config.data[name_of_section][name_of_key] = bool(newValue)
+                    log.info(f'value {name_of_key} in section {name_of_section} changed to bool {newValue}')
                 except:
                     print("\nThe value couldn't be changed because to type must be a Boolean!")
                     value_selection(name_of_section, name_of_key)
                     return
             else:
                 config.data[name_of_section][name_of_key] = str(newValue)
+                log.info(f'value {name_of_key} in section {name_of_section} changed to str {newValue}')
 
             print("\nChanged to: "+str(newValue))
             key_selection(name_of_section)
@@ -1640,52 +1729,74 @@ class CLI(cmd.Cmd):
 
     def do_debug(self, arg):
         '''Provides different debug functionalities'''
+        log = getLogger('DEBUG ACTIONS')
         if arg == 'add':
             time = time_utils.get_now(string=True)
+            log.info('starting debug request')
             req_timer.make_req(time, debug=True)
         elif arg == 'dAdd':
             req_timer.trigger_debug_action = True
+            log.debug('debug action triggered')
             print('trigger: ' + str(req_timer.trigger_debug_action))
         elif arg == 'rm':
+            log.info('removing last line')
             try:
                 db.rm_last()
             except DBWritingError:
+                log.error('DBWritingError')
                 print('--> line could not be removed!')
             except DBTimeoutError:
+                log.error('DBTimeoutError')
                 print("Database didn't respond!")
             else:
+                log.info('line removed')
                 print('--> line removed')
         elif arg == 'pingDB':
+            log.info('pinging Database')
             try:
                 db.ping()
             except DBConnectionError:
+                log.error('Database connection failed: DBConnectionError')
                 print("Connection to the database failed!")
             except DBTimeoutError:
+                log.error('Database connection failed: DBTimeoutError')
                 print("Database didn't respond!")
             else:
+                log.info('Database OK')
                 print('Connection to the database established')
         elif arg == 'pingApi':
             '''Checks if API1 is working correctly and if data is complete'''
+            log.info('pinging API1')
             em = "There is a problem with the Api:"
             try:
                 Api1().get_values()
             except ApiConnectionError:
+                log.error('API1 connection failed: ApiConnectionError')
                 em += "\n ApiConnectionError"
                 em += "\n The API1 didn't respond!"
-            except DataIncompleteError:
+            except DataIncompleteError as e:
+                log.error('API1 connection failed: DataIncompleteError')
+                log.error('missing data: ' + str(e.missing))
                 em += "\n DataIncompleteError"
-                em += "\n The data of the api request is incomplete!"
-            except WStOfflineError:
+                em += '  Some data values are missing:\n'
+                s += self.print_iterable(e.missing, indent='  - ')
+            except WStOfflineError as e:
+                log.error('API1 connection failed: WStOfflineError')
+                log.error('last online: ' + e.last_online.isoformat(sep=" "))
                 em += "\n WStOfflineError"
-                em += "\n The data of the request is outdated!"
+                em += "\n The data is outdated!"
+                em += f'  last online: {e.last_online.isoformat(sep=" ")}\n'
             except ApiTimeoutError:
+                log.error('API1 connection failed: ApiTimeoutError')
                 em += "\n ApiTimeoutError"
                 em += "\n Occurs when the api doesn't respond"
             else:
+                log.info('API1 OK')
                 em = "Everything is ok"
             em += "\n"
             print(em)
         elif arg == 'sendMail':
+            log.debug('calling debug_email()')
             emailMessages.debug_email()
         else:
             s = '\nUnknown command \'' + arg + '\' Usage: debug COMMAND\n\n'
@@ -1707,25 +1818,35 @@ class CLI(cmd.Cmd):
         quit()
 
 def restart():
+    log = getLogger('RESTART')
     '''Save the cmd history and restart in a new thread'''
+    log.info('stopping RequestTimer')
     req_timer.run = False
+    log.debug('writing cmd history')
     readline.write_history_file('.cmd_history')
+    log.info('saving config data')
     config.save()
     path = f'"{os.path.abspath(__file__)}"'
+    log.info('restart')
     os.execl(sys.executable, path, sys.argv[0], 'restart')
 
 def quit():
     '''Exit the program'''
+    log = getLogger('SHUTDOWN')
+    log.info('stopping RequestTimer')
     req_timer.run = False
+    log.info('saving config data')
     config.save()
+    log.info('shutdown')
     sys.exit()
 
 if __name__ == '__main__':
     if 'restart' in sys.argv:
         readline.read_history_file('.cmd_history')
-
     time_utils = TimeUtils()
     config = Configuration()
+    config.init_logging()
+
 
     db = None
     api1 = None

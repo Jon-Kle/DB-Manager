@@ -2,10 +2,11 @@
 *.txt
 *.pyc
 *.xlsx
+*.log
 requests/
 versions/
 .vscode/
-src/.cmd_history
+.cmd_history
 res/dat.json
 .gitsecret/keys/random_seed
 !*.secret
