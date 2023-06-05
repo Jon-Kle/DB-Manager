@@ -1211,6 +1211,7 @@ class CLI(cmd.Cmd):
                 print('timer has already been started!')
         elif arg == 'stop':
             req_timer.run = False
+            log.info('RequestTimer stopped')
             print('timer stopped!')
 
     def do_database(self, arg):
