@@ -2,6 +2,7 @@
 *.txt
 *.pyc
 *.xlsx
+*.log
 requests/
 versions/
 .vscode/

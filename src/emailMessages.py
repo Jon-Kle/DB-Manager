@@ -4,8 +4,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from customExceptions import *
+from logging import getLogger
 
 def send_warning(error: BaseException, debug=False):
+    log = getLogger('EMAIL MESSAGES')
     with open('res/warning-template.html') as f:
         html_template = f.read()
 
@@ -16,9 +18,12 @@ def send_warning(error: BaseException, debug=False):
 
     if not debug:
         if config_data['errors'][error_name]['active'] == True:
+            log.info('aborting warn email: error already active')
             return # if the status of the error is active, don't send error message
         config_data['errors'][error_name]['active'] = True
         config_data['errors'][error_name]['count'] += 1
+    else:
+        log.info('sending debug warn email')
 
     error_number = config_data['errors'][error_name]['count']
     if debug:
@@ -67,12 +72,15 @@ Lösungsvorschlag: {error_solution}
     try:
         send_email(message, subject, email_list)
     except BaseException as e:
+        log.error('error message could not be sent: ' + str(e))
         print('Mail could not be sent:\n', e)
     else:
+        log.info('error message sent')
         with open('res/error_msg_config.json', 'w') as f:
             f.write(json.dumps(config_data, indent='    '))
 
 def resolved(error_names: list):
+    log = getLogger('EMAIL MESSAGES')
     with open('res/warning-cancelation-template.html') as f:
         html_template = f.read()
 
@@ -121,8 +129,10 @@ def resolved(error_names: list):
     try:
         send_email(message, subject, email_list)
     except BaseException as e:
+        log.error('resolved message could not be sent: ' + str(e))
         print('resolved Mail could not be sent:\n', e)
     else:
+        log.info('resolved message sent')
         with open('res/error_msg_config.json', 'w') as f:
             f.write(json.dumps(config_data, indent='    '))
 
@@ -130,7 +140,8 @@ def debug_email():
     # error = DataIncompleteError()
     # error.missing = ['test1', 'getestet2', 'getestinging3', 'and so on4']
     # send_warning(DBConnectionError(BaseException()), debug=True)
-    resolved(['DBConnectionError', 'DBWritingError'])
+    # resolved(['DBConnectionError', 'DBWritingError'])
+    ...
 
 def send_email(message: MIMEMultipart, subject: str, receiver_list: list):
     with open('res/error_msg_config.json') as f:
