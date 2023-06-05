@@ -837,6 +837,7 @@ class RequestTimer:
         log = getLogger('REQUEST TIMER')
         i = self.seconds_till_next + 1
         self.run = True
+        self.msg = config.data['requestTimer']['show_message']
         while self.run:
             if self.trigger_debug_action:
                 self.trigger_debug_action = False
@@ -847,7 +848,7 @@ class RequestTimer:
                 i -= 1
             else:
                 log.info('starting request')
-                self.make_req()
+                self.make_req(msg=self.msg)
                 # calculate next request
                 self.next_req = time_utils.get_next()
                 log.info('next request: ' + (self.next_req + timedelta(hours=time.localtime().tm_isdst)).isoformat(sep=' '))
@@ -1194,6 +1195,8 @@ class CLI(cmd.Cmd):
         if arg == '':
             s = 'Usage: reqTimer OPTION\n\n'
             s += 'Options:\n'
+            s += ' silent : hides request messages\n'
+            a += ' show : shows request messages\n'
             s += ' start : Starts the request timer\n'
             s += ' stop : Stop the request timer\n\n'
             s += 'Current state: '
@@ -1202,6 +1205,16 @@ class CLI(cmd.Cmd):
             else:
                 s += 'stopped!\n'
             print(s)
+        elif arg == 'silent':
+            if not req_timer.msg:
+                print('already silent')
+            else:
+                req_timer.msg = False
+        elif arg == 'show':
+            if req_timer.msg:
+                print('already visible')
+            else:
+                req_timer.msg = True
         elif arg == 'start':
             if req_timer.run == False:
                 req_timer.start()
