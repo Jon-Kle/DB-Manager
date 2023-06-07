@@ -1151,89 +1151,71 @@ class CLI(cmd.Cmd):
 
     # ---- commands ----
 
-    def do_request(self, arg):
-        '''Save answer of API1 or API2 request as .json file in "requests"'''
-        if arg == '':
-            s = 'Usage: request api1|api2\n\n'\
-                'Save response of api in folder "requests"'
-            print(s)
-        elif arg == 'api1':
+    def do_api1(self, arg):
+        '''Actions regarding the API1'''
+        log = getLogger('API1')
+        if arg == 'ping':
+            '''Checks if API1 is working correctly and if data is complete'''
+            log.info('pinging')
+            em = "There is a problem with the Api:"
             try:
-                dt = datetime.now()
-                times = dt.strftime('%Y.%m.%d_%H:%M:%S')
-                name = f'api1_{times}.json'
-                f = open('requests/' + name, mode='x')
-                json.dump(api1.request(), f, indent='\t')
-            except FileExistsError:
-                print('You cant send requests multiple times per second!')
+                Api1().get_values()
             except ApiConnectionError:
-                print('Connection to Api1 failed!')
+                log.error('connection failed: ApiConnectionError')
+                em += "\n ApiConnectionError"
+                em += "\n The API1 didn't respond!"
+            except DataIncompleteError as e:
+                log.error('connection failed: DataIncompleteError')
+                log.error('missing data: ' + str(e.missing))
+                em += "\n DataIncompleteError"
+                em += '  Some data values are missing:\n'
+                s += self.print_iterable(e.missing, indent='  - ')
+            except WStOfflineError as e:
+                log.error('connection failed: WStOfflineError')
+                log.error('last online: ' + e.last_online.isoformat(sep=" "))
+                em += "\n WStOfflineError"
+                em += "\n The data is outdated!"
+                em += f'  last online: {e.last_online.isoformat(sep=" ")}\n'
             except ApiTimeoutError:
-                print("Api didn't respond!")
+                log.error('connection failed: ApiTimeoutError')
+                em += "\n ApiTimeoutError"
+                em += "\n Occurs when the api doesn't respond"
             else:
-                print(f'file {name} created')
-        elif arg == 'api2':
-            try:
-                dt = datetime.now()
-                times = dt.strftime('%Y.%m.%d_%H:%M:%S')
-                name = f'api2_{times}.json'
-                f = open('requests/' + name, mode='x')
-                json.dump(api2.request(), f, indent='\t')
-            except FileExistsError as e:
-                print('You cant send requests multiple times per second!')
-            except ApiConnectionError:
-                print('Connection to Api2 failed!')
-            except ApiTimeoutError:
-                print("Api didn't respond!")
-            else:
-                print(f'file {name} created')
-
-    def do_reqTimer(self, arg):
-        '''Start or stop the request timer'''
-        log = getLogger('REQUEST TIMER')
-        global req_timer
-        if arg == '':
-            s = 'Usage: reqTimer OPTION\n\n'
-            s += 'Options:\n'
-            s += ' silent : hides request messages\n'
-            a += ' show : shows request messages\n'
-            s += ' start : Starts the request timer\n'
-            s += ' stop : Stop the request timer\n\n'
-            s += 'Current state: '
-            if req_timer.run:
-                s += 'running\n'
-            else:
-                s += 'stopped!\n'
+                log.info('connection OK')
+                em = "Everything is ok"
+            em += "\n"
+            print(em)
+        else:
+            s = '\nUnknown command \'' + arg + '\' Usage: api1 COMMAND\n\n'
+            s += 'Commands:\n'
+            s += ' ping : Check if the API1 is online.\n'
             print(s)
-        elif arg == 'silent':
-            if not req_timer.msg:
-                print('already silent')
-            else:
-                req_timer.msg = False
-        elif arg == 'show':
-            if req_timer.msg:
-                print('already visible')
-            else:
-                req_timer.msg = True
-        elif arg == 'start':
-            if req_timer.run == False:
-                req_timer.start()
-                log.info('RequestTimer started')
-                print('timer started!')
-            else:
-                print('timer has already been started!')
-        elif arg == 'stop':
-            req_timer.run = False
-            log.info('RequestTimer stopped')
-            print('timer stopped!')
+    
+    def do_api2(self, arg):
+        '''Actions regarding the API2'''
+        log = getLogger('API2')
+        print('this command does nothing at the moment')
 
     def do_database(self, arg):
         log = getLogger('DATABASE')
-        '''Inspect and repair the gaps in the database made by downtime'''
+        '''Connect to the database, Inspect and repair the gaps in the database made by downtime'''
         arg = arg.rstrip('\n').split()
         if len(arg) == 0:
             arg.append('')
-        if arg[0] == 'mend':
+        if arg[0] == 'ping':
+            log.info('pinging Database')
+            try:
+                db.ping()
+            except DBConnectionError:
+                log.error('connection failed: DBConnectionError')
+                print("Connection to the database failed!")
+            except DBTimeoutError:
+                log.error('connection failed: DBTimeoutError')
+                print("Database didn't respond!")
+            else:
+                log.info('connection OK')
+                print('Connection to the database established')
+        elif arg[0] == 'mend':
             # find available files and show enumerated list of names
             path = 'add_data/'
             file_list = os.listdir(path)
@@ -1347,7 +1329,6 @@ class CLI(cmd.Cmd):
                 f.write(range_str)
                 f.close
             add_df_range_to_file()
-
         elif arg[0] == 'gaps':
             try:
                 entries = db.get_entries()
@@ -1556,7 +1537,6 @@ class CLI(cmd.Cmd):
                 s += ' -d : temp gaps.\n'
                 s += ' -m : temp gaps.\n'
                 print(s)
-
         elif arg[0] != '':
             print('\nUnknown command \'' + arg[0] + '\'!\n')
         else:
@@ -1565,6 +1545,45 @@ class CLI(cmd.Cmd):
             s += ' mend : select download file\n'
             s += ' gaps : show gaps in database\n'
             print(s)
+
+    def do_reqTimer(self, arg):
+        '''Start or stop the request timer'''
+        log = getLogger('REQUEST TIMER')
+        global req_timer
+        if arg == '':
+            s = 'Usage: reqTimer OPTION\n\n'
+            s += 'Options:\n'
+            s += ' silent : hides request messages\n'
+            a += ' show : shows request messages\n'
+            s += ' start : Starts the request timer\n'
+            s += ' stop : Stop the request timer\n\n'
+            s += 'Current state: '
+            if req_timer.run:
+                s += 'running\n'
+            else:
+                s += 'stopped!\n'
+            print(s)
+        elif arg == 'silent':
+            if not req_timer.msg:
+                print('already silent')
+            else:
+                req_timer.msg = False
+        elif arg == 'show':
+            if req_timer.msg:
+                print('already visible')
+            else:
+                req_timer.msg = True
+        elif arg == 'start':
+            if req_timer.run == False:
+                req_timer.start()
+                log.info('RequestTimer started')
+                print('timer started!')
+            else:
+                print('timer has already been started!')
+        elif arg == 'stop':
+            req_timer.run = False
+            log.info('RequestTimer stopped')
+            print('timer stopped!')
 
     def do_config(self, arg):
         #if some debug info is given while using the config command
@@ -1751,50 +1770,36 @@ class CLI(cmd.Cmd):
             else:
                 log.info('line removed')
                 print('--> line removed')
-        elif arg == 'pingDB':
-            log.info('pinging Database')
+        elif arg == 'reqApi1':
             try:
-                db.ping()
-            except DBConnectionError:
-                log.error('Database connection failed: DBConnectionError')
-                print("Connection to the database failed!")
-            except DBTimeoutError:
-                log.error('Database connection failed: DBTimeoutError')
-                print("Database didn't respond!")
-            else:
-                log.info('Database OK')
-                print('Connection to the database established')
-        elif arg == 'pingApi':
-            '''Checks if API1 is working correctly and if data is complete'''
-            log.info('pinging API1')
-            em = "There is a problem with the Api:"
-            try:
-                Api1().get_values()
+                dt = datetime.now()
+                times = dt.strftime('%Y.%m.%d_%H:%M:%S')
+                name = f'api1_{times}.json'
+                f = open('requests/' + name, mode='x')
+                json.dump(api1.request(), f, indent='\t')
+            except FileExistsError:
+                print('You cant send requests multiple times per second!')
             except ApiConnectionError:
-                log.error('API1 connection failed: ApiConnectionError')
-                em += "\n ApiConnectionError"
-                em += "\n The API1 didn't respond!"
-            except DataIncompleteError as e:
-                log.error('API1 connection failed: DataIncompleteError')
-                log.error('missing data: ' + str(e.missing))
-                em += "\n DataIncompleteError"
-                em += '  Some data values are missing:\n'
-                s += self.print_iterable(e.missing, indent='  - ')
-            except WStOfflineError as e:
-                log.error('API1 connection failed: WStOfflineError')
-                log.error('last online: ' + e.last_online.isoformat(sep=" "))
-                em += "\n WStOfflineError"
-                em += "\n The data is outdated!"
-                em += f'  last online: {e.last_online.isoformat(sep=" ")}\n'
+                print('Connection to Api1 failed!')
             except ApiTimeoutError:
-                log.error('API1 connection failed: ApiTimeoutError')
-                em += "\n ApiTimeoutError"
-                em += "\n Occurs when the api doesn't respond"
+                print("Api didn't respond!")
             else:
-                log.info('API1 OK')
-                em = "Everything is ok"
-            em += "\n"
-            print(em)
+                print(f'file {name} created')
+        elif arg == 'reqApi2':
+            try:
+                dt = datetime.now()
+                times = dt.strftime('%Y.%m.%d_%H:%M:%S')
+                name = f'api2_{times}.json'
+                f = open('requests/' + name, mode='x')
+                json.dump(api2.request(), f, indent='\t')
+            except FileExistsError as e:
+                print('You cant send requests multiple times per second!')
+            except ApiConnectionError:
+                print('Connection to Api2 failed!')
+            except ApiTimeoutError:
+                print("Api didn't respond!")
+            else:
+                print(f'file {name} created')
         elif arg == 'sendMail':
             log.debug('calling debug_email()')
             emailMessages.debug_email()
@@ -1804,8 +1809,8 @@ class CLI(cmd.Cmd):
             s += ' add : Adds row to db with current weather data.\n'
             s += ' dAdd : like \'add\' but called by the thread of req_timer.\n'
             s += ' rm : Remove last row of db.\n'
-            s += ' pingDB : Check and (re-)establish the connection with the database.\n'
-            s += ' pingApi : Check the connection with the Api.\n'
+            s += ' reqApi1 : Send a request to API1 and save the answer as .json file in requests/'
+            s += ' reqApi2 : Send a request to API2 and save the answer as .json file in requests/'
             s += ' sendMail : Call the debug_email() function in emailMessages.py\n'
             print(s)
 
