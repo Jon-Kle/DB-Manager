@@ -3,9 +3,18 @@ from datetime import datetime, timedelta
 
 
 def extract_range(file_name : str):
+    '''
+    Extract the range of the download file from its name.
+
+            Parameters:
+                    file_name (str) : Name of file from which the range will be extracted
+
+            Returns:
+                    (start: datetime, end: datetime)
+    '''
     quarter = False
     # preparation of name
-    file_name = file_name.strip('...')
+    file_name = file_name.strip('Wetterstation_R.-Steiner-Schule_Ismaning_')
     file_name_segments = file_name.split('_')
     start_date = file_name_segments[0].split('-')
     start_time = file_name_segments[1].split('-')
@@ -85,4 +94,4 @@ def extract_range(file_name : str):
                 if current.month > start.month:
                     break
             end = current
-    return(start, end)
+    return (start, end)
