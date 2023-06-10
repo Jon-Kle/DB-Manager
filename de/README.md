@@ -27,10 +27,12 @@ Dieses Projekt begann 2015 als eine Vertiefungsarbeit von einem ehemaligen Schü
 Einige Jahre später begann ich an dem Code zu Arbeiten, aber ich merkte, dass der C++-Code fehlte. Also ersetzte ich den C++-Code und beschloss, das Setup zu ändern und die Daten von den Servern von Davis Instruments über API abzurufen. Zum einen, weil die mitgelieferte Software 24/7 auf einem Windows-PC hätte laufen müssen, zum anderen, weil diese Software uralt war. Der DB-Manager ist dieser Ersatz.
 
 Ich persönlich hoffe, dass andere Schüler diese Arbeit weiterführen werden. Der **DB-Manager** ist schon fast fertig, aber zum Beispiel eine automatische Datenbankvervollständigung nach einem Ausfall könnte noch hinzugefügt werden.  
-Die **Website** hingegen kann verbessert und erweitert werden, um Wetterdaten auf mehr Daten anzuzeigen. Die einzige Bedingung ist, dass *das grundlegende Design der Website gleich bleibt.*  
+Die **Website** hingegen kann verbessert und erweitert werden, um Wetterdaten auf mehr Varianten anzuzeigen. Die einzige Bedingung ist, dass *das grundlegende Design der Website gleich bleibt.*  
 Der Schüler sollte seine Arbeit wiedererkennen können.
 
-## Setup
+## Setup auf der Raspberry Pi
+
+## Setup zum Development
 
 Das Setup hat zum Ziel, die Daten von der Wetterstation an der Schule auf die Website zu bringen. Um das zu erreichen, ist eine Kette von Elementen nötig:
 
@@ -166,6 +168,7 @@ Wenn irgendetwas nicht funktioniert und du die Lösung für das Problem nicht fi
 
 ### Command Line Interface
 
+grundlegende Tipps -> wie finde ich die Dokumentation herfür
 - api1
     - ping
 - api2
@@ -227,40 +230,47 @@ Wenn irgendetwas nicht funktioniert und du die Lösung für das Problem nicht fi
 
 ### Datenbank Administration
 
-
+### Wichtige befehle im Terminal
+zum Navigieren
+zum lesen und verändern von text dateien
+zum Verbinden mit der RPi
+    ssh
+    mount
 ## Entwicklung
 
-### Workflow:
+Struktur:
 
-getting ready for developing something new
+    - Einleitung
+        - DB-Manager + Raspberry Pi
+        - Dokumentation beruht auf den Docstrings
+    - Verhalten mit dem Code
+        - Datensicherheit
+        - Dokumentation
+        - Bewahrung und Akzeptanz von anderem Code
+    - Verhalten an der Raspberry Pi
+        - use backups for the config files
+    - Workflow
+    - Funktionsweise des Programmes
+        - grundstruktur
+        - config files
+            -> values and where to find them (DID Device id -> written on the data logger of the console)
+    - besonderheiten
+        - hidden files
+            .remaining_gaps
+	        .cmd_history
+        - wind direction in letters and not in numbers
+            download files use letters too
+        - Zeit CET ohne DST
+    - nicht doc-string dokumentiertes
 
-create branch from main or switch to branch
 
-pulling (if switched to branch)
+Workflow:
+- getting ready for developing something new
+- create branch from main or switch to branch
+- pulling (if switched to branch)
+- git secret reveal
+- developing
+- git secret hide
+- commit if finished
+- push and merge (pull request on github)
 
-git secret reveal
-
-developing
-
-git secret hide
-
-commit if finished
-
-push and merge (pull request on github) 
-
-### Funktionsweise des Programmes/Struktur
-
-grundlegende Struktur
-
-<?
-cli
-    funktionen
-
-request timer
-
-emails
-
-mend DB
-
-deep dive:
-?>
