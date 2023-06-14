@@ -19,9 +19,9 @@ class TimeUtils:
 
     Methods
     -------
-    get_now():
+    get_now(string=False):
             returns datetime object of CET timezone
-    get_next_req_time():
+    get_next_req_time(now=None):
             Calculates next_req.
     '''
 
@@ -30,7 +30,7 @@ class TimeUtils:
         Return a naive datetime object of the CET zone
 
                 parameters:
-                        string (bool) : lets this method return a string of
+                        string (bool): lets this method return a string of
                             the datetime object in iso format.
         '''
         now = datetime.utcnow() + timedelta(hours=1)  # uses CET, ignores DST
@@ -46,7 +46,7 @@ class TimeUtils:
         is always at xx:00 or at xx:30
 
                 parameters:
-                        now (datetime) : starting point for calculation.
+                        now (datetime): starting point for calculation.
                             If None the current time in CET gets used.
         '''
         if not now:
@@ -65,11 +65,11 @@ class Configuration:
 
     Attributes
     ----------
-    data : dict
+    data: dict
             content of the config.json file
-    excluded : list
+    excluded: list
             all the config values that are sensible and don't belong in the config file
-    secrets : dict
+    secrets: dict
             content of the dat.json file (sensible information)
 
     Methods
@@ -158,12 +158,12 @@ class Database:
 
     Attributes
     ----------
-    config : dict
+    config: dict
             configuration data for the database connection
-    con : pymysql.connection
+    con: pymysql.connection
             connection object of pymysql
             This is None, if the connection is not established.
-    cursor : pymysql.cursors.DictCursor
+    cursor: pymysql.cursors.DictCursor
             cursor object for database
 
     Methods
@@ -255,7 +255,7 @@ class Database:
         Add a row to the end of db with the values from "values".
 
                 Parameters:
-                        values (list) : Values that get written into the db
+                        values (list): Values that get written into the db
 
                 Exceptions:
                         DBWritingError
@@ -372,7 +372,7 @@ class Database:
         Gaps that are saved in add_data/.remaining_gaps are ignored because they can not be fixed (missing data).
 
                 Parameters:
-                        entries (list) : list of tuples returned by get_entries()
+                        entries (list): list of tuples returned by get_entries()
 
                 Returns:
                         [(start: datetime, end: datetime, count: int), ...]
@@ -432,7 +432,7 @@ class Database:
         Read the .csv file with the name file_name and add its contents to the database.
         
                 Parameters:
-                    file_name (str) : Name of file to be read
+                    file_name (str): Name of file to be read
 
                 Returns:
                     new_data_length: int
@@ -515,15 +515,15 @@ class Api1:
 
     Attributes
     ----------
-    config : dict
+    config: dict
             configuration data from which url, user, password and token are extracted
-    url : str
+    url: str
             the URL that is used for the request
-    user : str
+    user: str
             device-ID (DID) of the Data Logger mounted to the console of the station
-    password : str
+    password: str
             the password that is also used to log into the WeatherLink website
-    token : str
+    token: str
             unique API-Token. Don't share with anyone!
             If compromised generate a new one at https://www.weatherlink.com/account
 
@@ -534,7 +534,7 @@ class Api1:
     request():
             Makes an HTTPS request with the given values.
             Returns the answer in json format as a dict.
-    get_values():
+    get_values(time_=None):
             Extracts the Values for the db from a request and returns them.
     '''
 
@@ -593,7 +593,7 @@ class Api1:
         Make API1 Request and get selected values to form a list.
 
                 Parameters:
-                        time (str) : overwrites the entryDate value in val_list
+                        time (str): overwrites the entryDate value in val_list
 
                 Returns:
                         list of values from the weather station
@@ -718,16 +718,16 @@ class Api2:
 
     Attributes
     ----------
-    config : dict
+    config: dict
             configuration data from which url, key, secret and station_id are extracted
-    url : str
+    url: str
             the URL that is used for the request
-    key : str
+    key: str
             used to identify the user making the request
-    secret : str
+    secret: str
             used to calculate the signature for the request. Don't share with anyone!
             If compromised generate a new one at https://www.weatherlink.com/account
-    station_id : str
+    station_id: str
             ID which identifies the weather station the data is requested from
 
     Methods
@@ -835,21 +835,21 @@ class RequestTimer:
 
     Attributes
     ----------
-    config : dict
+    config: dict
             configuration data for requestTimer
-    show_msg : bool
+    show_msg: bool
             variable to set message visibility in the console as a configuration
-    msg : bool
+    msg: bool
             variable to toggle message visibility during runtime
-    run : bool
+    run: bool
             indicates when the timer is running
-    trigger_debug_request : bool
+    trigger_debug_request: bool
             variable to create requests in the timer thread for debugging
-    next_req : datetime
+    next_req: datetime
             time when the next line will be added to the database
-    seconds_till_next : int
+    seconds_till_next: int
             seconds till the next requests gets triggered
-    thread : Thread
+    thread: Thread
             thread for the timer
 
     Methods
@@ -858,9 +858,9 @@ class RequestTimer:
             Creates thread for the timer and starts it.
     timer():
             Counts seconds_till_next and calls make_req().
-    make_req(time=None):
+    make_req(time=None, msg=True, debug=False):
             Makes request and adds row to the database.
-    line_msg(time, vlist):
+    line_msg(time, values, debug=False):
             Builds message for when a line is added to the database
     '''
 
@@ -911,9 +911,9 @@ class RequestTimer:
         Trigger message if self.show_msg and self.msg is true.
 
                 Parameters:
-                        time (str) : overwrites the time value for the new line
-                        msg (bool) : determines if a message for the added line gets shown
-                        debug (bool) : gets passed on to line_msg()
+                        time (str): overwrites the time value for the new line
+                        msg (bool): determines if a message for the added line gets shown
+                        debug (bool): gets passed on to line_msg()
         '''
         log = getLogger('REQUEST TIMER')
 
@@ -994,9 +994,9 @@ class RequestTimer:
         '''Build message for when a new line is added to the database.
 
                 Parameters:
-                        time (str) : string that shows when the request was made
-                        vlist (list) : list with values from the request
-                        debug (bool) : changes the look of the message
+                        time (str): string that shows when the request was made
+                        values (list): list with values from the request
+                        debug (bool): changes the look of the message
         '''
         if debug:
             msg = ''
@@ -1021,7 +1021,7 @@ class CLI(cmd.Cmd):
 
     Attributes
     ----------
-    prompt : str
+    prompt: str
             shown in front of every new prompt
 
     Methods
@@ -1052,9 +1052,6 @@ class CLI(cmd.Cmd):
             Restart program and keep the command history.
     do_quit():
             Exit the program.
-
-    [do_request():
-            Saves answer of API1 or API2 request as .json file in "requests/".]
     '''
     prompt = '---(DB-Manager)> '
 
@@ -1240,7 +1237,7 @@ class CLI(cmd.Cmd):
         else:
             s = '\nUnknown command \'' + arg + '\' Usage: api1 COMMAND\n\n'
             s += 'Commands:\n'
-            s += ' ping : Check if the API1 is online.\n'
+            s += ' ping: Check if the API1 is online.\n'
             print(s)
     
     def do_api2(self, arg):
@@ -1586,16 +1583,16 @@ class CLI(cmd.Cmd):
                 print('\nUnknown option \'' + arg[1] + '\'!\n')
                 s = 'Usage: database gaps OPTION\n'
                 s += 'Options:\n'
-                s += ' -d : temp gaps.\n'
-                s += ' -m : temp gaps.\n'
+                s += ' -d: temp gaps.\n'
+                s += ' -m: temp gaps.\n'
                 print(s)
         else:
             print('\nUnknown command \'' + arg[0] + '\'!\n')
             s = 'Usage: database COMMAND\n\n'
             s += 'Commands:\n'
-            s += ' ping : check connection and try to reconnect if possible and necessary'
-            s += ' mend : select download file\n'
-            s += ' gaps : show gaps in database\n'
+            s += ' ping: check connection and try to reconnect if possible and necessary'
+            s += ' mend: select download file\n'
+            s += ' gaps: show gaps in database\n'
             print(s)
 
     def do_reqTimer(self, arg):
@@ -1605,10 +1602,10 @@ class CLI(cmd.Cmd):
         if arg == '':
             s = 'Usage: reqTimer OPTION\n\n'
             s += 'Options:\n'
-            s += ' silent : hides request messages\n'
-            a += ' show : shows request messages\n'
-            s += ' start : Starts the request timer\n'
-            s += ' stop : Stop the request timer\n\n'
+            s += ' silent: hides request messages\n'
+            a += ' show: shows request messages\n'
+            s += ' start: Starts the request timer\n'
+            s += ' stop: Stop the request timer\n\n'
             s += 'Current state: '
             if req_timer.run:
                 s += 'running\n'
@@ -1645,15 +1642,15 @@ class CLI(cmd.Cmd):
 
         Attributes:
         -----------
-        debug : bool
+        debug: bool
                 change to show debug messages
-        section_list : list
+        section_list: list
                 list of all sections such as db, api1, ...
-        exit_str : str
+        exit_str: str
                 input string that closes the config section
-        back_str : str
+        back_str: str
                 input string that returns to the previous view of the config section
-        num_of_options : int
+        num_of_options: int
                 number of options
         
         First-class functions:
@@ -1703,7 +1700,7 @@ class CLI(cmd.Cmd):
             )
             section_match(inp)
 
-        def key_selection(name_of_section : str):
+        def key_selection(name_of_section: str):
             print_key_str(name_of_section)
             inp = input('> ')
             # remove input from command history
@@ -1712,7 +1709,7 @@ class CLI(cmd.Cmd):
             )
             key_match(inp, name_of_section)
         
-        def value_selection(name_of_section : str, name_of_key : str):
+        def value_selection(name_of_section: str, name_of_key: str):
             print_value_str(name_of_key,name_of_section)
             inp = input('> ')
             # remove input from command history
@@ -1722,7 +1719,7 @@ class CLI(cmd.Cmd):
             set_value(inp, name_of_section, name_of_key)
 
 
-        def section_match(inp : str):
+        def section_match(inp: str):
             if debug: print("DEBUG: sectionMatch called, num_of_options: "+str(num_of_options))
             num = 0
             while num < num_of_options-2:
@@ -1747,7 +1744,7 @@ class CLI(cmd.Cmd):
                 print("\nYou input was wrong. Chose from the list below or use the associated number.")
                 section_selection()
 
-        def key_match(inp : str, name_of_section : str):
+        def key_match(inp: str, name_of_section: str):
             if debug: print("DEBUG: key_match called, num_of_options: "+str(num_of_options))
             key_list = list(config.data[name_of_section].keys())
             num = 0
@@ -1783,7 +1780,7 @@ class CLI(cmd.Cmd):
             change_value(inp, name_of_section, name_of_key)
 
 
-        def change_value(new_value, name_of_section : str, name_of_key : str):
+        def change_value(new_value, name_of_section: str, name_of_key: str):
             log = getLogger('CONFIG')
             if debug: print("DEBUG: change_value called, new_value: "+str(new_value))
             if type(config.data[name_of_section][name_of_key]) == int:
@@ -1823,7 +1820,7 @@ class CLI(cmd.Cmd):
             nonlocal num_of_options
             num_of_options = num+1
         
-        def print_key_str(name_of_section : str):
+        def print_key_str(name_of_section: str):
             #gets a list of all keys in the chosen section
             key_list = list(config.data[name_of_section].keys())
             #returns a string with a list of all kes from to chosen section from the config + exit and back
@@ -1841,7 +1838,7 @@ class CLI(cmd.Cmd):
             nonlocal num_of_options
             num_of_options = (num+1)
 
-        def print_value_str(name_of_key : str, name_of_section : str):
+        def print_value_str(name_of_key: str, name_of_section: str):
             out_str = "\nIf the input isn't an option from below, '"+str(name_of_key)+":"+str(config.data[name_of_section][name_of_key])+"' will be changed to the input.\n"
             out_str += "1 => " + back_str + "\n"
             out_str += "2 => " + exit_str + "\n"
@@ -1911,12 +1908,12 @@ class CLI(cmd.Cmd):
         else:
             s = '\nUnknown command \'' + arg + '\' Usage: debug COMMAND\n\n'
             s += 'Commands:\n'
-            s += ' add : Adds row to db with current weather data.\n'
-            s += ' dAdd : like \'add\' but called by the thread of req_timer.\n'
-            s += ' rm : Remove last row of db.\n'
-            s += ' reqApi1 : Send a request to API1 and save the answer as .json file in requests/'
-            s += ' reqApi2 : Send a request to API2 and save the answer as .json file in requests/'
-            s += ' sendMail : Call the debug_email() function in emailMessages.py\n'
+            s += ' add: Adds row to db with current weather data.\n'
+            s += ' dAdd: like \'add\' but called by the thread of req_timer.\n'
+            s += ' rm: Remove last row of db.\n'
+            s += ' reqApi1: Send a request to API1 and save the answer as .json file in requests/'
+            s += ' reqApi2: Send a request to API2 and save the answer as .json file in requests/'
+            s += ' sendMail: Call the debug_email() function in emailMessages.py\n'
             print(s)
 
     def do_restart(self, arg):
@@ -1928,8 +1925,8 @@ class CLI(cmd.Cmd):
         quit()
 
 def restart():
+    '''Save the cmd history, the configuration and call itself'''
     log = getLogger('RESTART')
-    '''Save the cmd history and restart in a new thread'''
     log.info('stopping RequestTimer')
     req_timer.run = False
     log.debug('writing cmd history')
@@ -1938,10 +1935,10 @@ def restart():
     config.save()
     path = f'"{os.path.abspath(__file__)}"'
     log.info('restart')
-    os.execl(sys.executable, path, sys.argv[0], 'restart')
+    os.execl(sys.executable, path, sys.argv[0], 'restart') # executes in the command line to call itself
 
 def quit():
-    '''Exit the program'''
+    '''Save the configuration and exit the program'''
     log = getLogger('SHUTDOWN')
     log.info('stopping RequestTimer')
     req_timer.run = False
