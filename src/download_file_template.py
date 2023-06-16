@@ -1,6 +1,4 @@
-
 from datetime import datetime, timedelta
-
 
 def extract_range(file_name : str):
     '''
@@ -14,7 +12,8 @@ def extract_range(file_name : str):
     '''
     quarter = False
     # preparation of name
-    file_name = file_name.strip('Wetterstation_R.-Steiner-Schule_Ismaning_')
+    # Name of the weather station with the spaces replaced by '_' and a trailing '_'
+    file_name = file_name.strip('Name_of_your_weather_station_')
     file_name_segments = file_name.split('_')
     start_date = file_name_segments[0].split('-')
     start_time = file_name_segments[1].split('-')
@@ -35,15 +34,15 @@ def extract_range(file_name : str):
         case '1 Hour':
             end = start + timedelta(hours=1)
             if quarter:
-                end -= timedelta(minutes=30)
+                end -= timedelta(minutes=15)
         case '4 Hours':
             end = start + timedelta(hours=4)
             if quarter:
-                end -= timedelta(minutes=30)
+                end -= timedelta(minutes=15)
         case '8 Hours':
             end = start + timedelta(hours=8)
             if quarter:
-                end -= timedelta(minutes=30)
+                end -= timedelta(minutes=15)
         case '1 Day':
             end = start + timedelta(days=1)
         case '3 Day':
@@ -56,42 +55,39 @@ def extract_range(file_name : str):
             end_month = start.month+1
             if end_month >= 13:
                 end_month = 1
-            current = start
-            while current.month != end_month:
-                current += timedelta(days=1)
-            while current.day != start.day:
-                current += timedelta(minutes=30)
-            end = current
+            current_date = start
+            while current_date.month != end_month:
+                current_date += timedelta(days=1)
+            while current_date.day != start.day:
+                current_date += timedelta(days=1)
+                if current_date.month != end_month:
+                    break
+            end = current_date
         case '3 Month':
             end_month = start.month+3
             if end_month >= 13:
                 end_month = 1
-            current = start
-            while current.month != end_month:
-                current += timedelta(days=1)
-            while current.day != start.day:
-                current += timedelta(minutes=30)
-            end = current
+            current_date = start
+            while current_date.month != end_month:
+                current_date += timedelta(days=1)
+            while current_date.day != start.day:
+                current_date += timedelta(days=1)
+                if current_date.month != end_month:
+                    break
+            end = current_date
         case '6 Month':
             end_month = start.month+6
             if end_month >= 13:
                 end_month = 1
-            current = start
-            while current.month != end_month:
-                current += timedelta(days=1)
-            while current.day != start.day:
-                current += timedelta(minutes=30)
-            end = current
-        case '1 Year':
-            end_year = start.year+1
-            current = start
-            while current.year != end_year:
-                current += timedelta(days=1)
-            while current.month != start.month:
-                current += timedelta(days=1)
-            while current.day != start.day:
-                current += timedelta(days=1)
-                if current.month > start.month:
+            current_date = start
+            while current_date.month != end_month:
+                current_date += timedelta(days=1)
+            while current_date.day != start.day:
+                current_date += timedelta(days=1)
+                if current_date.month != end_month:
                     break
-            end = current
+            end = current_date
+        case '1 Year':
+            end = start
+            end.year = start.year+1
     return (start, end)
