@@ -24,7 +24,7 @@
 		"timeoutMs": 3000
 	},
 	"requestTimer": {
-		"timer_at_startup": true,
+		"timer_at_startup": false,
 		"show_message": true
 	}
 }

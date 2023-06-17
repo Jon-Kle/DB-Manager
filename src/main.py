@@ -383,6 +383,8 @@ class Database:
             # parse into datetime objects
             gap_l = []
             for l in gap_str_l:
+                if l == '':
+                    raise FileNotFoundError
                 l.strip('\n') # looks like "2012-01-01T00:00:00 2013-01-01T00:00:00"
                 l2 = l.split()
                 gap_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
@@ -1237,7 +1239,7 @@ class CLI(cmd.Cmd):
         else:
             s = '\nUnknown command \'' + arg + '\' Usage: api1 COMMAND\n\n'
             s += 'Commands:\n'
-            s += ' ping: Check if the API1 is online.\n'
+            s += ' ping : Check if the API1 is online.\n'
             print(s)
     
     def do_api2(self, arg):
@@ -1311,6 +1313,8 @@ class CLI(cmd.Cmd):
                     # parse into datetime objects
                     gap_l = []
                     for l in range_str_l:
+                        if l == '':
+                            raise FileNotFoundError
                         l.strip('\n') # looks like "2012-01-01T00:00:00 2013-01-01T00:00:00"
                         l2 = l.split()
                         gap_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
@@ -1583,16 +1587,16 @@ class CLI(cmd.Cmd):
                 print('\nUnknown option \'' + arg[1] + '\'!\n')
                 s = 'Usage: database gaps OPTION\n'
                 s += 'Options:\n'
-                s += ' -d: temp gaps.\n'
-                s += ' -m: temp gaps.\n'
+                s += ' -d : temp gaps.\n'
+                s += ' -m : temp gaps.\n'
                 print(s)
         else:
             print('\nUnknown command \'' + arg[0] + '\'!\n')
             s = 'Usage: database COMMAND\n\n'
             s += 'Commands:\n'
-            s += ' ping: check connection and try to reconnect if possible and necessary'
-            s += ' mend: select download file\n'
-            s += ' gaps: show gaps in database\n'
+            s += ' ping : check connection and try to reconnect if possible and necessary\n'
+            s += ' mend : select download file\n'
+            s += ' gaps : show gaps in database\n'
             print(s)
 
     def do_reqTimer(self, arg):
@@ -1602,10 +1606,10 @@ class CLI(cmd.Cmd):
         if arg == '':
             s = 'Usage: reqTimer OPTION\n\n'
             s += 'Options:\n'
-            s += ' silent: hides request messages\n'
-            a += ' show: shows request messages\n'
-            s += ' start: Starts the request timer\n'
-            s += ' stop: Stop the request timer\n\n'
+            s += ' silent : hides request messages\n'
+            s += ' show : shows request messages\n'
+            s += ' start : Starts the request timer\n'
+            s += ' stop : Stop the request timer\n\n'
             s += 'Current state: '
             if req_timer.run:
                 s += 'running\n'
@@ -1908,12 +1912,12 @@ class CLI(cmd.Cmd):
         else:
             s = '\nUnknown command \'' + arg + '\' Usage: debug COMMAND\n\n'
             s += 'Commands:\n'
-            s += ' add: Adds row to db with current weather data.\n'
-            s += ' dAdd: like \'add\' but called by the thread of req_timer.\n'
-            s += ' rm: Remove last row of db.\n'
-            s += ' reqApi1: Send a request to API1 and save the answer as .json file in requests/'
-            s += ' reqApi2: Send a request to API2 and save the answer as .json file in requests/'
-            s += ' sendMail: Call the debug_email() function in emailMessages.py\n'
+            s += ' add : Adds row to db with current weather data.\n'
+            s += ' dAdd : like \'add\' but called by the thread of req_timer.\n'
+            s += ' rm : Remove last row of db.\n'
+            s += ' reqApi1 : Send a request to API1 and save the answer as .json file in requests/\n'
+            s += ' reqApi2 : Send a request to API2 and save the answer as .json file in requests/\n'
+            s += ' sendMail : Call the debug_email() function in emailMessages.py\n'
             print(s)
 
     def do_restart(self, arg):
