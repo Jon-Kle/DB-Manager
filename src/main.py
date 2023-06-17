@@ -1454,6 +1454,8 @@ class CLI(cmd.Cmd):
                             if entries[index][1]:
                                 table += char[2]
                             else:
+                                # --- here is an error somewhere ---
+                                table += '-'
                                 if range_index != None:
                                     while current > range_l[range_index][1]:
                                         range_index += 1
@@ -1464,6 +1466,7 @@ class CLI(cmd.Cmd):
                                         table += char[0]
                                     else:
                                         table += char[1]
+                                # --- -------------------------- ---
                         if current.hour == 23 and current.minute == 30: # at line end
                             table += ']\n['
                         if empty == False:
