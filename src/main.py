@@ -1070,7 +1070,7 @@ class CLI(cmd.Cmd):
                 s += '  Make sure the connection to the internet is good.\n\n'
             else:
                 raise e
-            start_req_timer = False
+            # start_req_timer = False This Api is not necessary for effective runtime
         else:
             log.info('API2 OK')
             # msg in chat that all is well
