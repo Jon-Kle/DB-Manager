@@ -198,77 +198,69 @@ Die `db` Sektion enthält alle Informationen über den Zugang der **Datenbank**.
 - `mendStartTime`: Das Datum, vor dem der DB-Manager nicht nach Lücken in der Datenbank sucht, weil da noch keine Daten gesammelt wurden. Format: `[Jahr],[Monat],[Tag],[Stunde],[Minute],[Sekunde]` 
 ---
 Die `Api1` Sektion enthält alles Nötige für den Zugang zur **Weatherlink Api V1**
-- url
-- user
-- pass
-- apiToken
-- timeoutMs
-- dataMaxAge
+- `url`: Die URL der Weatherlink Api V1: `https://api.weatherlink.com/v1/NoaaExt.json`
+- `user`: Der Benutzername für den Zugang bei [weatherlink.com](https://weatherlink.com)
+- `pass`: Das Passwort für den Zugang bei [weatherlink.com](https://weatherlink.com)
+- `apiToken`: Geheimes Token zur Verifizierung der Anfrage
+- `timeoutMs`: Die Zeit in Millisekunden, die der DB-Manager auf eine Antwort der Api wartet, bevor er die Anfrage abbricht.
+- `dataMaxAge`: Maximales Alter der Daten in Minuten, bei dem der DB-Manager keinen [`WStOfflineError`](#errors) erzeugt.
 ---
 Die `Api2` Sektion enthält alles Nötige für den Zugang zur **Weatherlink Api V2**
-- url
-- api-key
-- api-secret
-- stationID
-- timeoutMs
+- `url`: Die URL der Weatherlink Api V2: `https://weatherlink.github.io/v2-api/`
+- `api-key`: Die ID des Benutzers der Api
+- `api-secret`: Geheimnis zur Authentifizierung der Anfrage
+- `stationID`: Die ID der Wetterstation, erhalten durch einen speziellen Api Aufruf.
+- `timeoutMs`: Die Zeit in Millisekunden, die der DB-Manager auf eine Antwort der Api wartet, bevor er die Anfrage abbricht.
 ---
 Die `requestTimer` Sektion enthält alle Informationen über den **Request Timer**
-- timer_at_startup
-- show_message
-
-
+- `timer_at_startup`: Entscheidet, ob der Request Timer beim Start des Programmes direkt gestartet wird, wenn alle Bereiche funktionieren.
+- `show_message`: Entscheidet, ob der Status einer Anfrage im Terminal gezeigt wird oder nicht.
 
 debug
 -----
+Der `debug` Befehl sollte im normalen Betrieb nicht verwendet werden. Er stellt verschiedene Funktionen zur Verfügung, mit deren Hilfe man die Funktionalität des Setups überprüfen kann.
 
-restart/quit
+Diese Funktionen sind:
+
+- `add`: Füge eine Zeile mit aktuellen Daten zur **Datenbank** hinzu. Diese Aktion gleicht einer normalen Anfrage des **Request Timers**.
+- `dAdd`: Führe die selbe Aktion wie bei `add` aus, nur, dass die Aktion im **Request Timer** Thread ausgeführt wird. Dafür muss der **Request Timer** aktiv sein.
+- `rm`: Entferne die zuletzt hinzugefügte Zeile der **Datenbank**. Dafür gedacht, `add` und `dAdd` Aktionen rückgängig zu machen.
+- `reqApi1`: Sende eine Anfrage an die **Weatherlink Api V1** und speichere die vollständige Antwort als .json Datei im Ordner `requests/`
+- `reqApi2`: Sende eine Anfrage an die **Weatherlink Api V2** und speichere die vollständige Antwort als .json Datei im Ordner `requests/`
+- `sendMail`: Führe die Funktion `debug_email()` des Moduls `emailMessages.py` aus. Diese Funktion dient nur der Entwicklung, weshalb sie normalerweise keine Funktion erfüllt (also leer ist).
+
+quit/restart
 ------------
+Der Befehl `quit` beendet das Programm, nachdem die Einstellungen (die config.json und die dat.json Datei) wieder separiert und gespeichert wurden.
 
-
-- db
-        - host
-        - port
-        - user
-        - password
-        - database
-        - timeoutMs
-        - mendStartTime
-- Api1
-        - url
-        - user
-        - pass
-        - apiToken
-        - timeoutMs
-        - dataMaxAge
-- Api2
-        - url
-        - api-key
-        - api-secret
-        - stationID
-        - timeoutMs
-- requestTimer
-        - timer_at_startup
-        - show_message
-- debug
-    - request
-        - api1
-        - api2
-    - add
-    - dAdd
-    - rm
-    - sendMail
-- restart
-- quit
+Der `restart` Befehl tut im Prinzip das selbe, mit nur wenigen Veränderungen. Zusätzlich zu den Einstellungen, wird auch noch die Liste der verwendeten Befehle in der versteckten Datei `.cmd_history` gespeichert. Dann ruft sich das Programm selbst auf, bevor es sich beendet. So kann während der Entwicklung der veränderte Source-Code gestartet werden, ohne den Komfort des Befehls-verlaufes einzubüßen.
 
 ### **Fehlermeldungen**
-- DBConnectionError
-- DBWritingError
-- DBNoDataReceivedError
-- DBTimeoutError
-- ApiConnectionError
-- DataIncompleteError
-- WStOfflineError
-- ApiTimeoutError
+Der DB-Manager ist so geschrieben, dass er selbstständig auf alle Fehler die während des Betriebs auftauchen reagieren kann. Davon ausgenommen sind nur die speziellen Fehlermeldungen aus dem Modul `customExceptions.py`. Diese treten auf, wenn zum Beispiel die Verbindung mit der Datenbank fehlgeschlagen ist. Also Dinge, die nicht vom Programm selbst korrigiert werden können. Tritt so ein Fehler während des Betriebs des Request Timers auf, wird eine Warn-Email an eine Liste von mail-Adressen verschickt, in der die möglichen Gründe für den Fehler erläutert werden.
+
+- `DBConnectionError`: Die Verbindung zur Datenbank ist fehlgeschlagen.
+    - Die Datenbank könnte nicht aktiv sein
+    - Die Konfiguration für die Verbindung könnte nicht korrekt sein
+    - Die Login-Informationen zur Datenbank könnten nicht stimmen.
+- `DBWritingError`: Das schreiben in die Datenbank hat eine Fehlermeldung verursacht.
+    - Die Struktur der Datenbank könnte nicht stimmen
+    - Das Format der SQL-Anfrage des DB-Managers könnte falsch formatiert sein
+- `DBNoDataReceivedError`: Es wurden keine Daten in der Datenbank gefunden.
+    - Die Datenbank könnte nicht (korrekt) eingerichtet sein
+    - Die SQL-Anfrage könnte an die falsche Datenbank-Tabelle gerichtet sein
+- `DBTimeoutError`: Die Datenbank hat nicht geantwortet.
+    - Die Datenbank könnte nicht (mehr) in Betrieb sein
+    - Die Verbindung zur Datenbank könnte schlecht sein
+- `ApiConnectionError`: Die Verbindung mit der Servern von Davis Instruments konnte nicht aufgenommen werden. die Anfrage ist deshalb gescheitert.
+    - Die Internetverbindung könnte schlecht sein
+    - Der Server von Davis Instruments könnte gerade nicht erreichbar sein
+- `DataIncompleteError`: Die Daten von der Wetterstation sind unvollständig.
+    - Die Kabel zu einzelnen Instrumenten an der Wetterstation könnten beschädigt sein
+    - Das Kabel zwischen der Wetterstation und der Konsole könnte beschädigt sein
+- `WStOfflineError`: Die Wetterstation ist nicht mit dem Internet verbunden
+    - Das Lan-Kabel könnte aus gesteckt sein
+- `ApiTimeoutError`: Der Server von Davis Instruments hat nicht geantwortet
+    - Die Verbindung mit den Internet könnte schlecht sein
 
 ### **Datenbank Administration**
 
