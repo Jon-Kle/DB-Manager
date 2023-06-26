@@ -1429,7 +1429,7 @@ class CLI(cmd.Cmd):
                     range_index = None
                 # values for start and end points
                 start_index = 0
-                char = (' ', '+', '@') # characters used for printing
+                char = (' ', '\033[31m+\033[0m', '\033[32m@\033[0m') # characters used for printing with escape sequences for coloring
                 start_of_table = entries[start_index][0].replace(day=1, hour=0, minute=0) # first day in month of start
                 start_of_entries = entries[start_index][0] # date of first entry
                 end_of_entries = entries[-1][0] # date of last entry
@@ -1448,14 +1448,14 @@ class CLI(cmd.Cmd):
                             empty = False
                         if current == end_of_entries: # ends
                             empty = True
+
                         if empty == True: # printing if no data available
                             table += char[0]
                         elif empty == False: # printing if data available
-                            if entries[index][1]:
+                            if entries[index][1]: # If entry exists
                                 table += char[2]
-                            else:
-                                # --- here is an error somewhere ---
-                                table += '-'
+                            else: # if entry does not yet exist
+                                # check if entry could exist (check for saved gaps in the file)
                                 if range_index != None:
                                     while current > range_l[range_index][1]:
                                         range_index += 1
@@ -1466,7 +1466,8 @@ class CLI(cmd.Cmd):
                                         table += char[0]
                                     else:
                                         table += char[1]
-                                # --- -------------------------- ---
+                                else: table += char[1]
+
                         if current.hour == 23 and current.minute == 30: # at line end
                             table += ']\n['
                         if empty == False:
@@ -1517,7 +1518,7 @@ class CLI(cmd.Cmd):
                     range_index = None
                 # values for start and end points
                 start_index = 0
-                char = (' ', '+', 'x', '@') # characters used for printing
+                char = (' ', '\033[31m+\033[0m', '\033[93mx\033[0m', '\033[32m@\033[0m') # characters used for printing with escape sequences for coloring
                 start_of_table = entries[start_index][0].replace(month=1, day=1, hour=0, minute=0) # first day in month of start
                 start_of_entries = entries[start_index][0] # date of first entry
                 end_of_entries = entries[-1][0] # date of last entry
@@ -1554,17 +1555,18 @@ class CLI(cmd.Cmd):
                                             stat.add(0)
                                         else:
                                             stat.add(1)
+                                    else: stat.add(1)
                             if empty == False:
                                 index += 1
                             current += timedelta(minutes=30)
                         if stat in [{0}]: # if no data available
                                 table += char[0]
                         elif stat in [{1}, {0, 1}]: # if 1 in set
-                            table += char[1]
+                            table += char[1] # +
                         elif stat in [{1, 2}, {0, 1, 2}]: # if set is 1, 2 => extra char
-                            table += char[2]
+                            table += char[2] # x
                         elif stat in [{2}, {0, 2}]: # if day contains 2 and 0 => complete
-                            table += char[3]
+                            table += char[3] # @
                         if current.day == 1 and current.hour == 0 and current.minute == 0: # at line end
                             table += ']\n['
                     if print_table:
