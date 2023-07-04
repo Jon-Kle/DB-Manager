@@ -889,23 +889,28 @@ class RequestTimer:
         log = getLogger('REQUEST TIMER')
         i = self.seconds_till_next + 1
         self.run = True
-        while self.run:
-            if self.trigger_debug_request:
-                self.trigger_debug_request = False
-                log.info('starting debug request')
-                self.make_req(time=time_utils.get_now(string=True), debug=True)
+        try:
+            while self.run:
+                if self.trigger_debug_request:
+                    self.trigger_debug_request = False
+                    log.info('starting debug request')
+                    self.make_req(time=time_utils.get_now(string=True), debug=True)
 
-            if i > 0:
-                time.sleep(1)
-                i -= 1
-            else:
-                log.info('starting request')
-                self.make_req(msg=self.msg)
-                # calculate next request
-                self.next_req = time_utils.get_next()
-                log.info('next request: ' + (self.next_req + timedelta(hours=time.localtime().tm_isdst)).isoformat(sep=' '))
-                self.seconds_till_next = (self.next_req-time_utils.get_now()).seconds
-                i = self.seconds_till_next + 1
+                if i > 0:
+                    time.sleep(1)
+                    i -= 1
+                else:
+                    log.info('starting request')
+                    self.make_req(msg=self.msg)
+                    # calculate next request
+                    self.next_req = time_utils.get_next()
+                    log.info('next request: ' + (self.next_req + timedelta(hours=time.localtime().tm_isdst)).isoformat(sep=' '))
+                    self.seconds_till_next = (self.next_req-time_utils.get_now()).seconds
+                    i = self.seconds_till_next + 1
+        except BaseException as e:
+            log.error('unhandled exception occurred')
+            emailMessages.send_error(e)
+            raise e
 
     def make_req(self, time=None, msg=True, debug=False):
         '''
