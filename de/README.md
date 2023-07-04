@@ -18,8 +18,18 @@ Dies ist ein Schulprojekt. Wenn du einen Beitrag leisten willst, bitte lies die 
     - [Einrichten der Datenbank](#einrichten-der-datenbank)
     - [Docker-Container für die Website](#docker-container-für-die-website)
     - [git-secret](#git-secret)
-- Bedienung
-- Entwicklung
+- [Bedienung](#bedienung)
+    - [Die Inbetriebnahme](#die-inbetriebnahme)
+    - [Command Line Interface](#command-line-interface)
+        - [reqTimer](#reqtimer)
+        - [config](#config)
+        - [debug](#debug)
+        - [quit/restart](#quitrestart)
+    - [Fehlermeldungen](#fehlermeldungen)
+    - [Datenbank Administration](#datenbank-administration)
+    - [wichtige Befehle im Terminal](#wichtige-befehle-im-terminal)
+- [Entwicklung](#entwicklung)
+    -
 
 ## Über das Projekt
 
@@ -264,7 +274,7 @@ Der DB-Manager ist so geschrieben, dass er selbstständig auf alle Fehler die w�
 
 ### **Datenbank Administration**
 
-### Wichtige befehle im Terminal
+### **Wichtige Befehle im Terminal**
 zum Navigieren
 zum lesen und verändern von text dateien
 zum Verbinden mit der RPi
