@@ -1,0 +1,17 @@
+{
+	"db": {
+		"host": "",
+		"user": "",
+		"password": ""
+	},
+	"Api1": {
+		"user": "",
+		"pass": "",
+		"apiToken": ""
+	},
+	"Api2": {
+		"api-key": "",
+		"api-secret": "",
+		"stationID": ""
+	}
+}
