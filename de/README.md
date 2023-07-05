@@ -275,8 +275,17 @@ Der DB-Manager ist so geschrieben, dass er selbstständig auf alle Fehler die w�
 ### **Datenbank Administration**
 
 ### **Wichtige Befehle im Terminal**
+man command explained
 zum Navigieren
+cd -> change directory
+ls -> list
 zum lesen und verändern von text dateien
+cat
+less
+head
+tail
+nano
+vim
 zum Verbinden mit der RPi
     ssh
     mount
@@ -310,6 +319,7 @@ Struktur:
 
 
 Workflow:
+- (fetch --all --prune)
 - getting ready for developing something new
 - create branch from main or switch to branch
 - pulling (if switched to branch)
