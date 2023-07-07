@@ -6,7 +6,7 @@ import email.utils # for conversion of rfc822 to datetime
 from threading import Thread # For RequestTimer
 import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
-import cmd, readline # Command line
+import cmd # , readline # Command line
 import csv # Read download-files
 import emailMessages # remote error messages
 import logging # used in Configuration.init_logging()
@@ -1284,9 +1284,9 @@ class CLI(cmd.Cmd):
             # select file
             while True:
                 ans = input('>')
-                readline.remove_history_item(
-                    readline.get_current_history_length()-1
-                )
+                # readline.remove_history_item(
+                #     readline.get_current_history_length()-1
+                # )
                 if ans.isdecimal() and int(ans) in range(len(download_files)):
                     file_name = download_files[int(ans)]
                     break
@@ -1487,9 +1487,9 @@ class CLI(cmd.Cmd):
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
-                        readline.remove_history_item(
-                            readline.get_current_history_length()-1
-                        )
+                        # readline.remove_history_item(
+                        #     readline.get_current_history_length()-1
+                        # )
                         if ans == 'y':
                             end = next_end(current)
                             print_table = True
@@ -1583,9 +1583,9 @@ class CLI(cmd.Cmd):
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
-                        readline.remove_history_item(
-                            readline.get_current_history_length()-1
-                        )
+                        # readline.remove_history_item(
+                        #     readline.get_current_history_length()-1
+                        # )
                         if ans == 'y':
                             end = next_end(current)
                             print_table = True
@@ -1709,27 +1709,27 @@ class CLI(cmd.Cmd):
             print_section_str()
             inp = input('> ')
             # remove input from command history
-            readline.remove_history_item(
-                readline.get_current_history_length()-1
-            )
+            # readline.remove_history_item(
+            #     readline.get_current_history_length()-1
+            # )
             section_match(inp)
 
         def key_selection(name_of_section: str):
             print_key_str(name_of_section)
             inp = input('> ')
             # remove input from command history
-            readline.remove_history_item(
-                readline.get_current_history_length()-1
-            )
+            # readline.remove_history_item(
+            #     readline.get_current_history_length()-1
+            # )
             key_match(inp, name_of_section)
         
         def value_selection(name_of_section: str, name_of_key: str):
             print_value_str(name_of_key,name_of_section)
             inp = input('> ')
             # remove input from command history
-            readline.remove_history_item(
-                readline.get_current_history_length()-1
-            )
+            # readline.remove_history_item(
+            #     readline.get_current_history_length()-1
+            # )
             set_value(inp, name_of_section, name_of_key)
 
 
@@ -1747,9 +1747,9 @@ class CLI(cmd.Cmd):
                     print_key_str(str(section_list[num]))
                     inp_ = input('> ')
                     # remove input from command history
-                    readline.remove_history_item(
-                        readline.get_current_history_length()-1
-                    )
+                    # readline.remove_history_item(
+                    #     readline.get_current_history_length()-1
+                    # )
                     key_match(inp_, section_list[num])
                     break
                 num += 1
@@ -1944,7 +1944,7 @@ def restart():
     log.info('stopping RequestTimer')
     req_timer.run = False
     log.debug('writing cmd history')
-    readline.write_history_file('.cmd_history')
+    # readline.write_history_file('.cmd_history')
     log.info('saving config data')
     config.save()
     path = f'"{os.path.abspath(__file__)}"'
@@ -1962,8 +1962,8 @@ def quit():
     sys.exit()
 
 if __name__ == '__main__':
-    if 'restart' in sys.argv:
-        readline.read_history_file('.cmd_history')
+    # if 'restart' in sys.argv:
+        # readline.read_history_file('.cmd_history')
     if ['-d', '--debug'] in sys.argv:
         debugging = True
     else:
@@ -1980,9 +1980,9 @@ if __name__ == '__main__':
 
     cli = CLI()
     # enables autocompletion depending on the system MacOS/Linux or Windows
-    if os.name == 'posix':
-        readline.parse_and_bind('bind ^I rl_complete')
-    else:
-        readline.parse_and_bind('tab: complete')
+    # if os.name == 'posix':
+    #     readline.parse_and_bind('bind ^I rl_complete')
+    # else:
+    #     readline.parse_and_bind('tab: complete')
     cli.cmdloop()
 
