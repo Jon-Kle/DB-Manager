@@ -261,8 +261,8 @@ class Database:
                         DBWritingError
                         DBTimeoutError
         '''
-        query_string = "INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
- VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);"
+        query_string = "INSERT INTO `{table}` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+ VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);".format(table=self.config['table'])
         # this function gets executed in another thread
         def exec_():
             try:
@@ -280,16 +280,17 @@ class Database:
 
     def rm_last(self):
         '''
-        Remove last row in the "weatherdata" table.
+        Remove last row in the table.
 
                 Exceptions:
                         DBWritingError
                         DBTimeoutError
         '''
         def exec_():
+            table=self.config['table']
             try:
                 self.cursor.execute(
-                    "DELETE FROM `weatherdata` WHERE -1 ORDER BY entryDate DESC LIMIT 1;")
+                    f"DELETE FROM `{table}` WHERE -1 ORDER BY entryDate DESC LIMIT 1;")
                 self.con.commit()
                 return True, None
             except pymysql.Error as e:
@@ -308,11 +309,12 @@ class Database:
                     DBTimeoutError
         '''
         def exec_():
+            table = self.config['table']
             try:
                 # example line that gets removed instantly
-                self.cursor.execute(f"INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+                self.cursor.execute(f"INSERT INTO `{table}` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
  VALUES ('0000-01-01 00:00:00', '26.9', '1014.7', '39', '1.60934', 'SO', '0.0', '2.2');")
-                self.cursor.execute("DELETE FROM `weatherdata` WHERE entryDate = '0000-01-01 00:00:00';")
+                self.cursor.execute(f"DELETE FROM `{table}` WHERE entryDate = '0000-01-01 00:00:00';")
                 self.con.commit()
                 return True, None
             except pymysql.Error as e:
@@ -336,8 +338,9 @@ class Database:
                         DBNoDataReceivedError
         '''
         def get_data():
+            table = self.config['table']
             try:
-                db.cursor.execute('SELECT entryDate FROM weatherdata ORDER BY entryDate ASC')
+                db.cursor.execute(f'SELECT entryDate FROM {table} ORDER BY entryDate ASC')
                 data = db.cursor.fetchall()
                 return data, None
             except AttributeError as e:
@@ -495,8 +498,8 @@ class Database:
 
         def write_data():
             try:
-                db.cursor.executemany("INSERT INTO `weatherdata` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
- VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);", new_data)
+                db.cursor.executemany("INSERT INTO `{table}` (`entryDate`, `temp`, `pressure`, `hum`, `windspeed`, `winddir`, `rainrate`, `uvindex`)\
+ VALUES ( %s, %s, %s, %s, %s, %s, %s, %s);".format(table=self.config['table']), new_data)
                 db.con.commit()
                 return True, None
             except AttributeError as e:
