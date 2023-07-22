@@ -1,4 +1,5 @@
 .DS_Store
+.cmd_history
 *.txt
 *.pyc
 *.xlsx
@@ -6,10 +7,10 @@
 requests/
 versions/
 .vscode/
-.cmd_history
-res/dat.json
+add_data/*
 .gitsecret/keys/random_seed
 !*.secret
-add_data/*
-src/download_file.py
+res/config.json
+res/dat.json
 res/error_msg_config.json
+src/download_file.py
