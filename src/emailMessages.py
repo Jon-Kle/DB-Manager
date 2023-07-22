@@ -5,6 +5,8 @@ Functions
 ---------
 send_warning(error: BaseException, debug=False):
         Sends a warn-email with the content adjusted to the specific error provided.
+send_error(e: BaseException):
+        Sends a plain-text mail with information about the given critical error e.
 resolved(error_names: list):
         Sends a resolved-email regarding all errors provided in error_names 
         if these are currently active and thus can be resolved.
@@ -23,6 +25,7 @@ from email.utils import formatdate
 from customExceptions import *
 from logging import getLogger
 from typing import List
+import traceback
 
 def send_warning(error: BaseException, debug=False):
     '''
@@ -39,6 +42,9 @@ def send_warning(error: BaseException, debug=False):
     with open('res/error_msg_config.json') as f:
         config_data = json.loads(f.read())
 
+    # get the type of error
+    error_name = error.__class__.__name__
+
     # handle the status of the error
     if not debug: # activate error status
         if config_data['errors'][error_name]['active'] == True:
@@ -50,7 +56,6 @@ def send_warning(error: BaseException, debug=False):
         log.info('sending debug warn email')
 
     # get future content of the email
-    error_name = error.__class__.__name__
     error_number = config_data['errors'][error_name]['count']
     if debug:
         error_number = 'debugging'
@@ -105,6 +110,49 @@ Lösungsvorschlag: {error_solution}
         log.info('error message sent')
         with open('res/error_msg_config.json', 'w') as f:
             f.write(json.dumps(config_data, indent='    '))
+
+def send_error(e: BaseException):
+    '''
+    Execute, when a critical error occurred.
+    Send a plain text mail that contains a stacktrace and the arguments of the error given.
+    Recipient is defined in the error_msg_config.json file
+
+            Parameters:
+                    e (BaseException): error that will be sent per mail
+    '''
+    log = getLogger('EMAIL MESSAGES')
+    log.info('sending critical error mail')
+
+    # get config data
+    with open('res/error_msg_config.json') as f:
+        config_data = json.loads(f.read())
+
+    # variables for the mail
+    msg_str = f'''
+A critical error occurred:
+
+{traceback.format_exc()}
+params:
+{e.args}
+'''
+    subject = 'Critical error'
+    receiver_list = [config_data['critical_message_recipient']]
+
+    # assemble mail
+    message = MIMEMultipart()
+    msg_text = MIMEText(msg_str)
+    message.attach(msg_text)
+
+    # send mail
+    try:
+        send_email(message, subject, receiver_list)
+    except BaseException as err:
+        log.error('error message could not be sent: ' + str(err))
+        print('Mail could not be sent:\n', err)
+        log.error('critical error message: ' + message)
+        raise err
+    else:
+        log.info('error message sent')
 
 def resolved(error_names: List[str]):
     '''

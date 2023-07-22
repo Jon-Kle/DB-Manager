@@ -4,7 +4,8 @@
 		"port": 3306,
 		"user": "",
 		"password": "",
-		"database": "my-db",
+		"database": "weather",
+		"table": "data",
 		"timeoutMs": 3000,
 		"mendStartTime": "2012,7,9,0,0,0"
 	},

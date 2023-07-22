@@ -5,6 +5,7 @@
         "user_email": "",
         "password": ""
     },
+    "critical_message_recipient": "",
     "errors": {
         "DBConnectionError": {
             "count": 0,
