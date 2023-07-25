@@ -6,7 +6,7 @@ import email.utils # for conversion of rfc822 to datetime
 from threading import Thread # For RequestTimer
 import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
-import cmd # , readline # Command line
+import cmd # Command line (readline gets only imported if the config variable for it is true)
 import csv # Read download-files
 import emailMessages # remote error messages
 import logging # used in Configuration.init_logging()
@@ -101,13 +101,14 @@ class Configuration:
         self.secrets = json.loads(s)
 
         # check for empty values
-        for k1 in self.data.keys():
-            for k2 in self.data[k1].keys():
-                if self.data[k1][k2] == '':
-                    # replace them with the data of self.secrets
-                    self.data[k1][k2] = self.secrets[k1][k2]
-                    # not which values were not in config.json
-                    self.excluded.append((k1, k2))
+        for i, k1 in enumerate(self.data.keys()):
+            if i > 0:
+                for k2 in self.data[k1].keys():
+                    if self.data[k1][k2] == '':
+                        # replace them with the data of self.secrets
+                        self.data[k1][k2] = self.secrets[k1][k2]
+                        # not which values were not in config.json
+                        self.excluded.append((k1, k2))
 
     def init_logging(self):
         '''
@@ -1287,9 +1288,10 @@ class CLI(cmd.Cmd):
             # select file
             while True:
                 ans = input('>')
-                # readline.remove_history_item(
-                #     readline.get_current_history_length()-1
-                # )
+                if config.data['readline']:
+                    readline.remove_history_item(
+                        readline.get_current_history_length()-1
+                    )
                 if ans.isdecimal() and int(ans) in range(len(download_files)):
                     file_name = download_files[int(ans)]
                     log.info('file chosen for mending: ' + file_name)
@@ -1489,9 +1491,10 @@ class CLI(cmd.Cmd):
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
-                        # readline.remove_history_item(
-                        #     readline.get_current_history_length()-1
-                        # )
+                        if config.data['readline']:
+                            readline.remove_history_item(
+                                readline.get_current_history_length()-1
+                            )
                         if ans == 'y':
                             end = next_end(current)
                             print_table = True
@@ -1585,9 +1588,10 @@ class CLI(cmd.Cmd):
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
-                        # readline.remove_history_item(
-                        #     readline.get_current_history_length()-1
-                        # )
+                        if config.data['readline']:
+                            readline.remove_history_item(
+                                readline.get_current_history_length()-1
+                            )
                         if ans == 'y':
                             end = next_end(current)
                             print_table = True
@@ -1710,28 +1714,31 @@ class CLI(cmd.Cmd):
         def section_selection():
             print_section_str()
             inp = input('> ')
-            # remove input from command history
-            # readline.remove_history_item(
-            #     readline.get_current_history_length()-1
-            # )
+            if config.data['readline']:
+                # remove input from command history
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
             section_match(inp)
 
         def key_selection(name_of_section: str):
             print_key_str(name_of_section)
             inp = input('> ')
-            # remove input from command history
-            # readline.remove_history_item(
-            #     readline.get_current_history_length()-1
-            # )
+            if config.data['readline']:
+                # remove input from command history
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
             key_match(inp, name_of_section)
         
         def value_selection(name_of_section: str, name_of_key: str):
             print_value_str(name_of_key,name_of_section)
             inp = input('> ')
-            # remove input from command history
-            # readline.remove_history_item(
-            #     readline.get_current_history_length()-1
-            # )
+            if config.data['readline']:
+                # remove input from command history
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
             set_value(inp, name_of_section, name_of_key)
 
 
@@ -1748,10 +1755,11 @@ class CLI(cmd.Cmd):
                     if debug: print("DEBUG: Success with: "+ str(num+1) + " or: "+ str(section_list[num]))
                     print_key_str(str(section_list[num]))
                     inp_ = input('> ')
-                    # remove input from command history
-                    # readline.remove_history_item(
-                    #     readline.get_current_history_length()-1
-                    # )
+                    if config.data['readline']:
+                        # remove input from command history
+                        readline.remove_history_item(
+                            readline.get_current_history_length()-1
+                        )
                     key_match(inp_, section_list[num])
                     break
                 num += 1
@@ -1946,7 +1954,8 @@ def restart():
     log.info('stopping RequestTimer')
     req_timer.run = False
     log.debug('writing cmd history')
-    # readline.write_history_file('.cmd_history')
+    if config.data['readline']:
+        readline.write_history_file('.cmd_history')
     log.info('saving config data')
     config.save()
     path = f'"{os.path.abspath(__file__)}"'
@@ -1964,8 +1973,6 @@ def quit():
     sys.exit()
 
 if __name__ == '__main__':
-    # if 'restart' in sys.argv:
-        # readline.read_history_file('.cmd_history')
     if ['-d', '--debug'] in sys.argv:
         debugging = True
     else:
@@ -1981,10 +1988,17 @@ if __name__ == '__main__':
     req_timer = None
 
     cli = CLI()
-    # enables autocompletion depending on the system MacOS/Linux or Windows
-    # if os.name == 'posix':
-    #     readline.parse_and_bind('bind ^I rl_complete')
-    # else:
-    #     readline.parse_and_bind('tab: complete')
+    if config.data['readline']:
+        import readline
+
+        # load command history
+        if 'restart' in sys.argv:
+            readline.read_history_file('.cmd_history')
+
+        # enables autocompletion depending on the system MacOS/Linux or Windows
+        if os.name == 'posix':
+            readline.parse_and_bind('bind ^I rl_complete')
+        else:
+            readline.parse_and_bind('tab: complete')
     cli.cmdloop()
 
