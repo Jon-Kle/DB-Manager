@@ -6,7 +6,7 @@ import email.utils # for conversion of rfc822 to datetime
 from threading import Thread # For RequestTimer
 import hmac # Hash function for WeatherLink-API
 import pymysql, requests, json # APIs and database
-import cmd, readline # Command line
+import cmd # Command line (readline gets only imported if the config variable for it is true)
 import csv # Read download-files
 import emailMessages # remote error messages
 import logging # used in Configuration.init_logging()
@@ -101,13 +101,14 @@ class Configuration:
         self.secrets = json.loads(s)
 
         # check for empty values
-        for k1 in self.data.keys():
-            for k2 in self.data[k1].keys():
-                if self.data[k1][k2] == '':
-                    # replace them with the data of self.secrets
-                    self.data[k1][k2] = self.secrets[k1][k2]
-                    # not which values were not in config.json
-                    self.excluded.append((k1, k2))
+        for i, k1 in enumerate(self.data.keys()):
+            if i > 0:
+                for k2 in self.data[k1].keys():
+                    if self.data[k1][k2] == '':
+                        # replace them with the data of self.secrets
+                        self.data[k1][k2] = self.secrets[k1][k2]
+                        # not which values were not in config.json
+                        self.excluded.append((k1, k2))
 
     def init_logging(self):
         '''
@@ -1287,108 +1288,108 @@ class CLI(cmd.Cmd):
             # select file
             while True:
                 ans = input('>')
-                readline.remove_history_item(
-                    readline.get_current_history_length()-1
-                )
+                if config.data['readline']:
+                    readline.remove_history_item(
+                        readline.get_current_history_length()-1
+                    )
                 if ans.isdecimal() and int(ans) in range(len(download_files)):
                     file_name = download_files[int(ans)]
-                    break
-                elif ans == 'q':
-                    return
-            log.info('file chosen for mending: ' + file_name)
+                    log.info('file chosen for mending: ' + file_name)
             
-            try:
-                new_entries = db.load_file(path + file_name)
-                log.info(f'{new_entries} entries added')
-                print(f'{new_entries} new entries added!')
-            except DBConnectionError as e:
-                log.error('connection failed: DBConnectionError')
-                print("Connection to the database was not established!")
-            except DBTimeoutError as e:
-                log.error('connection failed: DBTimeoutError')
-                print("Writing to the Database took too long!")
+                    try:
+                        new_entries = db.load_file(path + file_name)
+                        log.info(f'{new_entries} entries added')
+                        print(f'{new_entries} new entries added!')
+                    except DBConnectionError as e:
+                        log.error('connection failed: DBConnectionError')
+                        print("Connection to the database was not established!")
+                    except DBTimeoutError as e:
+                        log.error('connection failed: DBTimeoutError')
+                        print("Writing to the Database took too long!")
 
-            def add_df_range_to_file():
-                ''''''
-                # extract start and end of data from download file
-                date_range = download_file.extract_range(file_name) # looks like (start: datetime, end: datetime)
+                    def add_df_range_to_file():
+                        ''''''
+                        # extract start and end of data from download file
+                        date_range = download_file.extract_range(file_name) # looks like (start: datetime, end: datetime)
 
-                # read data from file
-                # this is very similar to the code in Database.get_gaps()
-                try:
-                    f = open('add_data/.remaining_gaps')
-                    range_str_l = f.readlines()
-                    # parse into datetime objects
-                    gap_l = []
-                    for l in range_str_l:
-                        if l == '':
-                            raise FileNotFoundError
-                        l.strip('\n') # looks like "2012-01-01T00:00:00 2013-01-01T00:00:00"
-                        l2 = l.split()
-                        gap_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
-                    f.close()
-                except FileNotFoundError:
-                    gap_l = []
+                        # read data from file
+                        # this is very similar to the code in Database.get_gaps()
+                        try:
+                            f = open('add_data/.remaining_gaps')
+                            range_str_l = f.readlines()
+                            # parse into datetime objects
+                            gap_l = []
+                            for l in range_str_l:
+                                if l == '':
+                                    raise FileNotFoundError
+                                l.strip('\n') # looks like "2012-01-01T00:00:00 2013-01-01T00:00:00"
+                                l2 = l.split()
+                                gap_l.append((datetime.fromisoformat(l2[0]), datetime.fromisoformat(l2[1])))
+                            f.close()
+                        except FileNotFoundError:
+                            gap_l = []
 
-                # merge new range into gap file
-                new_ranges = []
-                first_date_placed = False
-                second_placed = False
-                # 0 -> the start of the file range is before the gap
-                # 1 -> the start of the file range is in the gap
-                state = None
-                first_i = None # index of gap_l
-                i = 0
-                while i < len(gap_l): # find position of the start of the file range
-                    if date_range[0] < gap_l[i][0]: # start of file range is before gap
-                        state = 0
-                        first_i = i
-                        first_date_placed = True
-                        break
-                    elif date_range[0] < gap_l[i][1]: # start of file range is in gap
-                        state = 1
-                        first_i = i
-                        first_date_placed = True
-                        break
-                    new_ranges.append(gap_l[i])
-                    i += 1
-                if not first_date_placed: # start of file range is after all gaps
-                    new_ranges = gap_l + [date_range]
-                elif state == None: # only possible if gap_l is empty
-                    new_ranges = [date_range] + gap_l
-                else:
-                    while i < len(gap_l): # find position of second date in range
-                        if date_range[1] < gap_l[i][0]: # before
-                            if state == 0:
-                                new_ranges.append(date_range)
-                            elif state == 1:
-                                new_ranges.append((gap_l[first_i][0], date_range[1]))
-                            new_ranges += gap_l[i:]
-                            second_placed = True
-                            break
-                        elif date_range[1] < gap_l[i][1]: # in
-                            if state == 0:
-                                new_ranges.append((date_range[0], gap_l[i][1]))
-                            elif state == 1:
-                                new_ranges.append((gap_l[first_i][0], gap_l[i][1]))
-                            new_ranges += gap_l[i+1:]
-                            second_placed = True
-                            break
-                        i += 1
-                    if not second_placed:
-                        new_ranges.append((date_range[0], date_range[1]))
+                        # merge new range into gap file
+                        new_ranges = []
+                        first_date_placed = False
+                        second_placed = False
+                        # 0 -> the start of the file range is before the gap
+                        # 1 -> the start of the file range is in the gap
+                        state = None
+                        first_i = None # index of gap_l
+                        i = 0
+                        while i < len(gap_l): # find position of the start of the file range
+                            if date_range[0] < gap_l[i][0]: # start of file range is before gap
+                                state = 0
+                                first_i = i
+                                first_date_placed = True
+                                break
+                            elif date_range[0] < gap_l[i][1]: # start of file range is in gap
+                                state = 1
+                                first_i = i
+                                first_date_placed = True
+                                break
+                            new_ranges.append(gap_l[i])
+                            i += 1
+                        if not first_date_placed: # start of file range is after all gaps
+                            new_ranges = gap_l + [date_range]
+                        elif state == None: # only possible if gap_l is empty
+                            new_ranges = [date_range] + gap_l
+                        else:
+                            while i < len(gap_l): # find position of second date in range
+                                if date_range[1] < gap_l[i][0]: # before
+                                    if state == 0:
+                                        new_ranges.append(date_range)
+                                    elif state == 1:
+                                        new_ranges.append((gap_l[first_i][0], date_range[1]))
+                                    new_ranges += gap_l[i:]
+                                    second_placed = True
+                                    break
+                                elif date_range[1] < gap_l[i][1]: # in
+                                    if state == 0:
+                                        new_ranges.append((date_range[0], gap_l[i][1]))
+                                    elif state == 1:
+                                        new_ranges.append((gap_l[first_i][0], gap_l[i][1]))
+                                    new_ranges += gap_l[i+1:]
+                                    second_placed = True
+                                    break
+                                i += 1
+                            if not second_placed:
+                                new_ranges.append((date_range[0], date_range[1]))
 
-                # parse data to string
-                range_str = ''
-                for e in new_ranges:
-                    range_str += datetime.isoformat(e[0]) + ' ' + datetime.isoformat(e[1]) + '\n'
-                
-                # save new data in file
-                f = open('add_data/.remaining_gaps', mode='w')
-                f.write(range_str)
-                f.close
+                        # parse data to string
+                        range_str = ''
+                        for e in new_ranges:
+                            range_str += datetime.isoformat(e[0]) + ' ' + datetime.isoformat(e[1]) + '\n'
 
-            add_df_range_to_file()
+                        # save new data in file
+                        f = open('add_data/.remaining_gaps', mode='w')
+                        f.write(range_str)
+                        f.close
+
+                    add_df_range_to_file()
+                elif ans == 'q':
+                    break
         elif arg[0] == 'gaps':
             try:
                 entries = db.get_entries()
@@ -1490,9 +1491,10 @@ class CLI(cmd.Cmd):
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
-                        readline.remove_history_item(
-                            readline.get_current_history_length()-1
-                        )
+                        if config.data['readline']:
+                            readline.remove_history_item(
+                                readline.get_current_history_length()-1
+                            )
                         if ans == 'y':
                             end = next_end(current)
                             print_table = True
@@ -1586,9 +1588,10 @@ class CLI(cmd.Cmd):
 
                     if current != end_of_table:
                         ans = input('more?[y/n]:')
-                        readline.remove_history_item(
-                            readline.get_current_history_length()-1
-                        )
+                        if config.data['readline']:
+                            readline.remove_history_item(
+                                readline.get_current_history_length()-1
+                            )
                         if ans == 'y':
                             end = next_end(current)
                             print_table = True
@@ -1711,28 +1714,31 @@ class CLI(cmd.Cmd):
         def section_selection():
             print_section_str()
             inp = input('> ')
-            # remove input from command history
-            readline.remove_history_item(
-                readline.get_current_history_length()-1
-            )
+            if config.data['readline']:
+                # remove input from command history
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
             section_match(inp)
 
         def key_selection(name_of_section: str):
             print_key_str(name_of_section)
             inp = input('> ')
-            # remove input from command history
-            readline.remove_history_item(
-                readline.get_current_history_length()-1
-            )
+            if config.data['readline']:
+                # remove input from command history
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
             key_match(inp, name_of_section)
         
         def value_selection(name_of_section: str, name_of_key: str):
             print_value_str(name_of_key,name_of_section)
             inp = input('> ')
-            # remove input from command history
-            readline.remove_history_item(
-                readline.get_current_history_length()-1
-            )
+            if config.data['readline']:
+                # remove input from command history
+                readline.remove_history_item(
+                    readline.get_current_history_length()-1
+                )
             set_value(inp, name_of_section, name_of_key)
 
 
@@ -1749,10 +1755,11 @@ class CLI(cmd.Cmd):
                     if debug: print("DEBUG: Success with: "+ str(num+1) + " or: "+ str(section_list[num]))
                     print_key_str(str(section_list[num]))
                     inp_ = input('> ')
-                    # remove input from command history
-                    readline.remove_history_item(
-                        readline.get_current_history_length()-1
-                    )
+                    if config.data['readline']:
+                        # remove input from command history
+                        readline.remove_history_item(
+                            readline.get_current_history_length()-1
+                        )
                     key_match(inp_, section_list[num])
                     break
                 num += 1
@@ -1947,7 +1954,8 @@ def restart():
     log.info('stopping RequestTimer')
     req_timer.run = False
     log.debug('writing cmd history')
-    readline.write_history_file('.cmd_history')
+    if config.data['readline']:
+        readline.write_history_file('.cmd_history')
     log.info('saving config data')
     config.save()
     path = f'"{os.path.abspath(__file__)}"'
@@ -1965,8 +1973,6 @@ def quit():
     sys.exit()
 
 if __name__ == '__main__':
-    if 'restart' in sys.argv:
-        readline.read_history_file('.cmd_history')
     if ['-d', '--debug'] in sys.argv:
         debugging = True
     else:
@@ -1982,10 +1988,17 @@ if __name__ == '__main__':
     req_timer = None
 
     cli = CLI()
-    # enables autocompletion depending on the system MacOS/Linux or Windows
-    if os.name == 'posix':
-        readline.parse_and_bind('bind ^I rl_complete')
-    else:
-        readline.parse_and_bind('tab: complete')
+    if config.data['readline']:
+        import readline
+
+        # load command history
+        if 'restart' in sys.argv:
+            readline.read_history_file('.cmd_history')
+
+        # enables autocompletion depending on the system MacOS/Linux or Windows
+        if os.name == 'posix':
+            readline.parse_and_bind('bind ^I rl_complete')
+        else:
+            readline.parse_and_bind('tab: complete')
     cli.cmdloop()
 

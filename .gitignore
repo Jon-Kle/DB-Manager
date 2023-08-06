@@ -8,6 +8,7 @@ requests/
 versions/
 .vscode/
 add_data/*
+!add_data/place\ import\ files\ here
 .gitsecret/keys/random_seed
 !*.secret
 res/config.json

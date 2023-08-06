@@ -1,4 +1,5 @@
 {
+	"readline": true,
 	"db": {
 		"host": "",
 		"port": 3306,

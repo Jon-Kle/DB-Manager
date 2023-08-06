@@ -88,6 +88,5 @@ def extract_range(file_name : str):
                     break
             end = current_date
         case '1 Year':
-            end = start
-            end.year = start.year+1
+            end = start.replace(year = start.year + 1)
     return (start, end)
