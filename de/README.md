@@ -273,26 +273,36 @@ Der DB-Manager ist so geschrieben, dass er selbstständig auf alle Fehler die w�
     - Die Verbindung mit den Internet könnte schlecht sein
 
 ### **Datenbank Administration**
+*Kurzfassung:*
+Zur administration der Datenbank wird [PhpMyAdmin](https://www.phpmyadmin.net/) verwendet. Eine Website, durch die eine genaue Analyse der Datenbank ermöglicht wird.
+Um diese Website zu benutzen, muss sie als [virtual host](https://wiki.ubuntuusers.de/Apache/Virtual_Hosts/) auf dem Apache2 Server laufen. Virtual Host deswegen, weil die IP-Range eingeschränkt werden muss, damit nicht das gesamte Internet darauf zugreifen kann.
+Solange dieser aber noch nicht eingerichtet ist, steht die Website nicht zur Verfügung.
 
 ### **Wichtige Befehle im Terminal**
-man command explained
-zum Navigieren
-cd -> change directory
-ls -> list
-zum lesen und verändern von text dateien
-cat
-less
-head
-tail
-nano
-vim
-zum Verbinden mit der RPi
-    ssh
-    mount
+Bei der Raspberry Pi Administration kann ausschließlich mit dem Terminal gearbeitet werden, da die Raspberry Pi keine Graphische Benutzer Oberfläche (GUI) außer diesem hat.
+Nützliche Befehle beim Bedienen des Terminals sind:
+- ssh - secure shell
+- man - manual
+- apropos - Suchen von Befehlen des Terminals
+- cd - change directory
+- ls - list
+- mv - move
+- cp - copy
+- rm - remove
+- htop - Systemressourcen
+- cat - concatenate
+- less - Um große Dateien zu lesen z.B. Logs
+- more - Ähnlich wie less
+- head - Anfang eines Files ausgeben
+- tail - Ende eines Files ausgeben
+- nano - Texteditor
+- vim - Texteditor (kompliziert)
+- mount - Usb-Sticks mit der Raspberry Pi verbinden
+- crontab - Prozesse zu bestimmten Zeiten starten lassen
 
 ## Entwicklung
 
-Struktur:
+Baustelle:
 
     - Einleitung
         - DB-Manager + Raspberry Pi
@@ -302,7 +312,7 @@ Struktur:
         - Dokumentation
         - Bewahrung und Akzeptanz von anderem Code
     - Verhalten an der Raspberry Pi
-        - use backups for the config files
+        - use backups for the config files -> (copies of files with .backup extension before any changes)
     - Workflow
     - Funktionsweise des Programmes
         - grundstruktur
