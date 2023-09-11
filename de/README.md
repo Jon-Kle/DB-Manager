@@ -18,26 +18,40 @@ Dies ist ein Schulprojekt. Wenn du einen Beitrag leisten willst, bitte lies die 
     - [Einrichten der Datenbank](#einrichten-der-datenbank)
     - [Docker-Container für die Website](#docker-container-für-die-website)
     - [git-secret](#git-secret)
-- Dokumentation
+- [Bedienung](#bedienung)
+    - [Die Inbetriebnahme](#die-inbetriebnahme)
+    - [Command Line Interface](#command-line-interface)
+        - [reqTimer](#reqtimer)
+        - [config](#config)
+        - [debug](#debug)
+        - [quit/restart](#quitrestart)
+    - [Fehlermeldungen](#fehlermeldungen)
+    - [Datenbank Administration](#datenbank-administration)
+    - [wichtige Befehle im Terminal](#wichtige-befehle-im-terminal)
+- [Entwicklung](#entwicklung)
+    -
 
 ## Über das Projekt
 
 Dieses Projekt begann 2015 als eine Vertiefungsarbeit von einem ehemaligen Schüler. Er erstellte die Website und ein C++-Programm als Erweiterung für die Wetterüberwachungssoftware, die mit der Wetterstation kam Er hatte vor, das gesamte Setup lokal in der Schule laufen zu lassen, kam aber nie dazu, es aufzubauen.  
-Einige Jahre später begann ich an dem Code zu Arbeiten, aber ich merkte, dass der C++-Code fehlte. Also ersetzte ich den C++-Code und beschloss, das Setup zu ändern und die Daten von den Servern von Davis Instruments über API abzurufen. Zum einen, weil die mitgelieferte Software 24/7 auf einem Windows-PC hätte laufen müssen, zum anderen, weil diese Software uralt war. Der DB-Manager ist dieser Ersatz.
+Einige Jahre später 2022 begann ich an dem Code zu Arbeiten, aber ich merkte, dass der C++-Code fehlte. Also ersetzte ich diesen Teil und beschloss, das Setup zu ändern und die Daten von den Servern von Davis Instruments über die API abzurufen. Zum einen, weil die mitgelieferte Software 24/7 auf einem Windows-PC hätte laufen müssen, zum anderen, weil diese Software uralt war. Der DB-Manager ist dieser Ersatz.
 
-Ich persönlich hoffe, dass andere Schüler diese Arbeit weiterführen werden. Der **DB-Manager** ist schon fast fertig, aber zum Beispiel eine automatische Datenbankvervollständigung nach einem Ausfall könnte noch hinzugefügt werden.  
-Die **Website** hingegen kann verbessert und erweitert werden, um Wetterdaten auf mehr Daten anzuzeigen. Die einzige Bedingung ist, dass *das grundlegende Design der Website gleich bleibt.*  
-Der Schüler sollte seine Arbeit wiedererkennen können.
+Ich persönlich hoffe, dass andere Schüler diese Arbeit weiterführen werden. Der **DB-Manager** ist soweit fertig, aber zum Beispiel eine automatische Datenbankvervollständigung nach einem Ausfall könnte noch hinzugefügt werden.  
+Die **Website** hingegen kann verbessert und erweitert werden um Wetterdaten auf mehr Varianten anzuzeigen. Die einzige Bedingung ist, dass *das grundlegende Design der Website gleich bleibt.*  
+Der Schüler, der sie ursprünglich entworfen und programmiert hat, sollte seine Arbeit wiedererkennen können.
 
 ## Setup
 
 Das Setup hat zum Ziel, die Daten von der Wetterstation an der Schule auf die Website zu bringen. Um das zu erreichen, ist eine Kette von Elementen nötig:
 
-Verbunden mit der **Wetterstation** ist eine **Konsole**, die die Daten speichert und an den **weatherlink.com Server** schickt. Dieser Server hat zwei APIs, die vom **DB-Manager** benutzt werden, um die Daten abzurufen und in einer **MySQL Datenbank** zu speichern. Von dort kann die **Website** mit MySQLi auf die Daten zugreifen, um sie darzustellen.
+Verbunden mit der **Wetterstation** ist eine **Konsole**, die die Daten speichert und an den **weatherlink.com Server** schickt. Dieser Server hat zwei APIs, die vom **DB-Manager** benutzt werden um die Daten abzurufen und in einer **MySQL Datenbank** zu speichern. Von dort kann die **Website** mit PHP und MySQLi auf die Daten zugreifen, um sie darzustellen.
 
 Zusätzlich wird **phpMyAdmin** zum Testen und Debuggen verwendet.
 
-### Docker
+Im weiteren wird der Setup-Prozess zur Entwicklung am eigenen Computer erläutert.
+Den Setup-Prozess an der Raspberry Pi sowie wichtige Informationen zum Betrieb derselben finden sich [hier](RaspberryPi.md)
+
+### **Docker**
 Docker ist eine clevere Methode, um Software zu isolieren und für verschiedene Entwickler ohne Probleme zugänglich zu machen. Docker wird verwendet, um große Teile dieses Setups auszuführen. Du kannst es [hier](https://www.docker.com/) herunterladen. Nachdem Du es erfolgreich auf Deinem Computer installiert hast, kannst du damit beginnen, die verschiedenen Elemente zu erstellen, die das Setup benötigt.
 
 Mit Docker kannst du Webserver oder Datenbanken ohne eine komplizierte Einrichtung auf deinem Computer ausführen. Das einzige, was du brauchst, ist ein sogenanntes **Image**, eine Art Bauplan der Software, die du mit Docker laufen lassen möchtest.  
@@ -64,7 +78,7 @@ Wenn du mehrere Container erstellen willst, gibt es `docker compose`. Das ist ei
 
 Eine weitere wichtige Sache ist Networking in Docker, aber dazu später mehr.
 
-### Docker-Container für MySQL
+### **Docker-Container für MySQL**
 Um den MySQL-Container zu erstellen, musst du nach der neuesten Version des offiziellen MySQL-Docker-Images auf [Docker-Hub](https://hub.docker.com/) suchen und diese als Tag verwenden. Dann musst du diesen Befehl ausführen, wobei TAG durch den zuvor gefundenen Tag ersetzt wird:
 ```
 docker run -d --name mysql-db -p 3306:3306 -v /mysql-db-con:/con -e MYSQL_PASSWORD=root -e MYSQL_DATABASE=my-db mysql:TAG
@@ -75,14 +89,14 @@ Falls du Windows benutzt, kann es sein das der Befehl nicht funktioniert, weil d
 
 Du kannst `docker ps` verwenden, um zu überprüfen, ob der Container läuft.
 
-### Docker-Container für phpMyAdmin
+### **Docker-Container für phpMyAdmin****
 Um phpMyAdmin zum Laufen zu bringen musst du den Befehl 
 ```
 docker run -d --name myadmin -p 8081:80 -e PMA_HOST=mysql-db phpmyadmin
 ```
 ausführen. Wenn der Container läuft kannst du deinen Browser öffnen und `localhost:8081` eingeben. Nun solltest du eine Website sehen, auf der du dich anmelden musst.
 
-### Docker-Networking
+### **Docker-Networking**
 Damit du mit phpMyAdmin auf deine Datenbank zugreifen kannst, musst du die beiden Container miteinander verbinden. Dafür musst du ein Netzwerk einrichten.
 ```
 docker network create sqladmin
@@ -93,7 +107,7 @@ Der erste Befehl erstellt ein neues Netzwerk mit dem Namen `sqladmin`. Die beide
 mit dem Netzwerk.  
 Versuche nun dich mit dem Benutzer `root` und dem temporären Passwort `root` bei phpMyAdmin einzuloggen. Nun solltest du eine grafische Oberfläche sehen, mit der du die Datenbank einsehen, verwalten und verändern kannst.
 
-### Einrichten der Datenbank
+### **Einrichten der Datenbank**
 Damit der DB-Manager die Daten in die Datenbank schreiben kann, muss die Datenbank eine bestimmte Tabellenstruktur besitzen. Sonst läuft der Schreibbefehl ins Lehre.  
 Um diese Tabellenstruktur zu erstellen musst du die Datei `setup.sql` im Ordner `setup` in phpMyAdmin importieren. Diese Aktion führt die SQL-Befehle, die in der Datei stehen aus. Diese initiieren eine neue Tabelle und definieren die Spalten mit ihren Eigenschaften.  
 Eine andere Methode um diese Befehle auszuführen ist im Terminal. Dazu musst du eine bash Shell in dem Container der Datenbank ausführen. Das geht entweder mit der Benutzeroberfläche von Docker oder mit dem Befehl 
@@ -108,7 +122,7 @@ Dieser Befehl importiert den File im montierten Ordner in die Datenbank, also f�
 
 Zusätzlich zum `setup.sql` file gibt es auch noch einen `sample-data.sql` file. Dieser enthält 100 Datenpunkte, mit denen du das Programm in Zukunft testen kannst.
 
-### Docker-Container für die Website
+### **Docker-Container für die Website**
 Um die Website zum laufen zu bringen, muss ein weiterer Container erstellt werden. Allerdings braucht dieser eine Extrabehandlung mit einem Dockerfile.  
 Den Dockerfile den du dafür brauchst findest du ebenfalls im Ordner `setup`. Diesen musst du nun in einen leeren Ordner bewegen. Dann navigierst du mit dem Terminal in den Ordner und führst folgendes aus:
 ```
@@ -129,7 +143,7 @@ In Zukunft wird es einen Weg geben, die Login Daten für die Website abzulesen.
 
 Nun solltest du die Website über `localhost:8080` im Browser erreichen können.
 
-### git-secret
+### **git-secret**
 Git-secret ist ein Werkzeug, um die Dateien mit sensitiven Daten zu verschlüsseln, bevor sie auf Github gestellt werden.  
 Das einrichten von git-secret ist eines der letzten größeren Hindernisse, bevor der DB-Manager endlich rund laufen kann.
 
@@ -159,5 +173,169 @@ Wenn du es aber für dich alleine verwenden willst gibt es [hier](https://git-se
 Wenn du nun den DB-Manager ausführst, solltest du sehen, ob er sich mit der Datenbank und der API verbinden kann.  
 Wenn irgendetwas nicht funktioniert und du die Lösung für das Problem nicht findest, kontaktiere ein Mitglied des Schulprojekts, oder schreibe ein Issue. Wenn alles läuft, hast du erfolgreich das Setup abgeschlossen. 
 
-<?
-## Dokumentation>
+## Bedienung
+
+### **Die Inbetriebnahme**
+Bevor der DB-Manager gestartet werden kann, muss man in der Befehlszeile zuerst in den Ordner des DB-Managers [navigieren](wichtige Befehle)
+Bei der Inbetriebnahme des DB-Managers mit dem Aufruf der `src/main.py` Datei mit dem `python3` Interpreter erscheinen nach wenigen Sekunden einige Statusmeldungen über die Verschiedenen Bestandteile des Setups. Zuerst werden Anfragen an die **Weatherlink Api V1** und die **Weatherlink Api V2** gesendet, die prüfen, ob diese verfügbar sind. Dann wird die Verbindung und die Schreibe- und Lesemöglichkeit für die **Datenbank** überprüft.
+Ist eine Verbindung zur **Api1** sowie zur **Datenbank** möglich, wird der **Request Timer** gestartet (vorausgesetzt, diese Funktionalität ist in den Einstellungen aktiviert). Dieser ruft automatisch jede halbe Stunde die Daten der **Api1** ab und speist sie in die **Datenbank** ein. Mehr zum Request Timer findet sich [hier](#reqtimer)
+
+### **Command Line Interface**
+
+Das Command Line Interface (cli) bietet einige Möglichkeiten den DB-Manager zu steuern. Generell kann der Befehl `help` verwendet werden, um eine Auflistung aller Befehle zu sehen. `help` kann dann erneut verwendet werden, um genauere Informationen über die einzelnen Befehle zu erhalten. Dazu schreibt man den fraglichen Befehl einfach hinter help (z.B. Zum Beispiel `help reqTimer`). Bei allen Befehlen außer `restart` und `quit` kann man ebenfalls einfach den Befehl selbst benutzen, um mehr Informationen über die Bedienungsweise zu erfahren. Grundsätzlich geht das bei allen Befehlen, die mehrere Optionen bereitstellen wie `database`.
+
+reqTimer
+--------
+Der Request Timer (abgekürzt `reqTimer`) ist dafür zuständig während dem dauerbetrieb regelmäßig Daten für die Datenbank zu sammeln. Diese Aufgabe wird als **Persistierung** bezeichnet. Ist der ReqTimer aktiviert, läuft er selbstständig im Hintergrund und zeigt regelmäßig Meldungen über die Anfragen, die er tätigt.
+
+Die Befehle `start`, `stop`, `silent` und `show` können dazu verwendet werden, den ReqTimer zu starten, zu stoppen, die Nachrichten zu verbergen oder wieder zu zeigen.
+
+config
+------
+Der `config` Befehl wird verwendet, um die Konfiguration des DB-Managers zu verändern. Die Konfiguration wird in zwei separaten .json Dateien abgespeichert. Die eine Datei `config.json` enthält alle Informationen abgesehen von denen, die nicht auf github veröffentlicht werden sollten, wie Passwörter, Api-Token und Benutzernamen sowie Mail-Adressen. Diese werden separat in der von git-secret geschützten Datei `dat.json` gespeichert. Beim Start des DB-Managers werden beide Dateien eingelesen und zusammengelegt und am Ende wieder getrennt gespeichert.
+Separat dazu steht die `error_msg_config.json` Datei, die nur verwendet wird, wenn Warn-E-Mails versendet werden müssen. Diese ist auch (noch) nicht vom DB-Manager aus veränderbar.
+
+Die Konfiguration besteht aus mehreren Sektionen:
+
+---
+Die `db` Sektion enthält alle Informationen über den Zugang der **Datenbank**.
+- `host`: Die Adresse des Hosts also der Maschine, auf der die Datenbank läuft. Hier: `127.0.0.1` (localhost/loopback)
+- `port`: Die Port-Nummer der Datenbank. Standardmäßig: `3306`
+- `user`: Der Benutzername für den Zugang zur Datenbank.
+- `password`: Das Passwort für den Zugang.
+- `database`: Der Name der Datenbank. (Das Datenbank-Programm an sich unterstützt mehrere Datenbanken.)
+- `timeoutMs`: Die Zeit in Millisekunden, die der DB-Manager auf eine Antwort der Datenbank wartet, bevor er die Anfrage abbricht.
+- `mendStartTime`: Das Datum, vor dem der DB-Manager nicht nach Lücken in der Datenbank sucht, weil da noch keine Daten gesammelt wurden. Format: `[Jahr],[Monat],[Tag],[Stunde],[Minute],[Sekunde]` 
+---
+Die `Api1` Sektion enthält alles Nötige für den Zugang zur **Weatherlink Api V1**
+- `url`: Die URL der Weatherlink Api V1: `https://api.weatherlink.com/v1/NoaaExt.json`
+- `user`: Der Benutzername für den Zugang bei [weatherlink.com](https://weatherlink.com)
+- `pass`: Das Passwort für den Zugang bei [weatherlink.com](https://weatherlink.com)
+- `apiToken`: Geheimes Token zur Verifizierung der Anfrage
+- `timeoutMs`: Die Zeit in Millisekunden, die der DB-Manager auf eine Antwort der Api wartet, bevor er die Anfrage abbricht.
+- `dataMaxAge`: Maximales Alter der Daten in Minuten, bei dem der DB-Manager keinen [`WStOfflineError`](#errors) erzeugt.
+---
+Die `Api2` Sektion enthält alles Nötige für den Zugang zur **Weatherlink Api V2**
+- `url`: Die URL der Weatherlink Api V2: `https://weatherlink.github.io/v2-api/`
+- `api-key`: Die ID des Benutzers der Api
+- `api-secret`: Geheimnis zur Authentifizierung der Anfrage
+- `stationID`: Die ID der Wetterstation, erhalten durch einen speziellen Api Aufruf.
+- `timeoutMs`: Die Zeit in Millisekunden, die der DB-Manager auf eine Antwort der Api wartet, bevor er die Anfrage abbricht.
+---
+Die `requestTimer` Sektion enthält alle Informationen über den **Request Timer**
+- `timer_at_startup`: Entscheidet, ob der Request Timer beim Start des Programmes direkt gestartet wird, wenn alle Bereiche funktionieren.
+- `show_message`: Entscheidet, ob der Status einer Anfrage im Terminal gezeigt wird oder nicht.
+
+debug
+-----
+Der `debug` Befehl sollte im normalen Betrieb nicht verwendet werden. Er stellt verschiedene Funktionen zur Verfügung, mit deren Hilfe man die Funktionalität des Setups überprüfen kann.
+
+Diese Funktionen sind:
+
+- `add`: Füge eine Zeile mit aktuellen Daten zur **Datenbank** hinzu. Diese Aktion gleicht einer normalen Anfrage des **Request Timers**.
+- `dAdd`: Führe die selbe Aktion wie bei `add` aus, nur, dass die Aktion im **Request Timer** Thread ausgeführt wird. Dafür muss der **Request Timer** aktiv sein.
+- `rm`: Entferne die zuletzt hinzugefügte Zeile der **Datenbank**. Dafür gedacht, `add` und `dAdd` Aktionen rückgängig zu machen.
+- `reqApi1`: Sende eine Anfrage an die **Weatherlink Api V1** und speichere die vollständige Antwort als .json Datei im Ordner `requests/`
+- `reqApi2`: Sende eine Anfrage an die **Weatherlink Api V2** und speichere die vollständige Antwort als .json Datei im Ordner `requests/`
+- `sendMail`: Führe die Funktion `debug_email()` des Moduls `emailMessages.py` aus. Diese Funktion dient nur der Entwicklung, weshalb sie normalerweise keine Funktion erfüllt (also leer ist).
+
+quit/restart
+------------
+Der Befehl `quit` beendet das Programm, nachdem die Einstellungen (die config.json und die dat.json Datei) wieder separiert und gespeichert wurden.
+
+Der `restart` Befehl tut im Prinzip das selbe, mit nur wenigen Veränderungen. Zusätzlich zu den Einstellungen, wird auch noch die Liste der verwendeten Befehle in der versteckten Datei `.cmd_history` gespeichert. Dann ruft sich das Programm selbst auf, bevor es sich beendet. So kann während der Entwicklung der veränderte Source-Code gestartet werden, ohne den Komfort des Befehls-verlaufes einzubüßen.
+
+### **Fehlermeldungen**
+Der DB-Manager ist so geschrieben, dass er selbstständig auf alle Fehler die während des Betriebs auftauchen reagieren kann. Davon ausgenommen sind nur die speziellen Fehlermeldungen aus dem Modul `customExceptions.py`. Diese treten auf, wenn zum Beispiel die Verbindung mit der Datenbank fehlgeschlagen ist. Also Dinge, die nicht vom Programm selbst korrigiert werden können. Tritt so ein Fehler während des Betriebs des Request Timers auf, wird eine Warn-Email an eine Liste von mail-Adressen verschickt, in der die möglichen Gründe für den Fehler erläutert werden.
+
+- `DBConnectionError`: Die Verbindung zur Datenbank ist fehlgeschlagen.
+    - Die Datenbank könnte nicht aktiv sein
+    - Die Konfiguration für die Verbindung könnte nicht korrekt sein
+    - Die Login-Informationen zur Datenbank könnten nicht stimmen.
+- `DBWritingError`: Das schreiben in die Datenbank hat eine Fehlermeldung verursacht.
+    - Die Struktur der Datenbank könnte nicht stimmen
+    - Das Format der SQL-Anfrage des DB-Managers könnte falsch formatiert sein
+- `DBNoDataReceivedError`: Es wurden keine Daten in der Datenbank gefunden.
+    - Die Datenbank könnte nicht (korrekt) eingerichtet sein
+    - Die SQL-Anfrage könnte an die falsche Datenbank-Tabelle gerichtet sein
+- `DBTimeoutError`: Die Datenbank hat nicht geantwortet.
+    - Die Datenbank könnte nicht (mehr) in Betrieb sein
+    - Die Verbindung zur Datenbank könnte schlecht sein
+- `ApiConnectionError`: Die Verbindung mit der Servern von Davis Instruments konnte nicht aufgenommen werden. die Anfrage ist deshalb gescheitert.
+    - Die Internetverbindung könnte schlecht sein
+    - Der Server von Davis Instruments könnte gerade nicht erreichbar sein
+- `DataIncompleteError`: Die Daten von der Wetterstation sind unvollständig.
+    - Die Kabel zu einzelnen Instrumenten an der Wetterstation könnten beschädigt sein
+    - Das Kabel zwischen der Wetterstation und der Konsole könnte beschädigt sein
+- `WStOfflineError`: Die Wetterstation ist nicht mit dem Internet verbunden
+    - Das Lan-Kabel könnte aus gesteckt sein
+- `ApiTimeoutError`: Der Server von Davis Instruments hat nicht geantwortet
+    - Die Verbindung mit den Internet könnte schlecht sein
+
+### **Datenbank Administration**
+*Kurzfassung:*
+Zur administration der Datenbank wird [PhpMyAdmin](https://www.phpmyadmin.net/) verwendet. Eine Website, durch die eine genaue Analyse der Datenbank ermöglicht wird.
+Um diese Website zu benutzen, muss sie als [virtual host](https://wiki.ubuntuusers.de/Apache/Virtual_Hosts/) auf dem Apache2 Server laufen. Virtual Host deswegen, weil die IP-Range eingeschränkt werden muss, damit nicht das gesamte Internet darauf zugreifen kann.
+Solange dieser aber noch nicht eingerichtet ist, steht die Website nicht zur Verfügung.
+
+### **Wichtige Befehle im Terminal**
+Bei der Raspberry Pi Administration kann ausschließlich mit dem Terminal gearbeitet werden, da die Raspberry Pi keine Graphische Benutzer Oberfläche (GUI) außer diesem hat.
+Nützliche Befehle beim Bedienen des Terminals sind:
+- ssh - secure shell
+- man - manual
+- apropos - Suchen von Befehlen des Terminals
+- cd - change directory
+- ls - list
+- mv - move
+- cp - copy
+- rm - remove
+- htop - Systemressourcen
+- cat - concatenate
+- less - Um große Dateien zu lesen z.B. Logs
+- more - Ähnlich wie less
+- head - Anfang eines Files ausgeben
+- tail - Ende eines Files ausgeben
+- nano - Texteditor
+- vim - Texteditor (kompliziert)
+- mount - Usb-Sticks mit der Raspberry Pi verbinden
+- crontab - Prozesse zu bestimmten Zeiten starten lassen
+
+## Entwicklung
+
+Baustelle:
+
+    - Einleitung
+        - DB-Manager + Raspberry Pi
+        - Dokumentation beruht auf den Docstrings
+    - Verhalten mit dem Code
+        - Datensicherheit
+        - Dokumentation
+        - Bewahrung und Akzeptanz von anderem Code
+    - Verhalten an der Raspberry Pi
+        - use backups for the config files -> (copies of files with .backup extension before any changes)
+    - Workflow
+    - Funktionsweise des Programmes
+        - grundstruktur
+        - config files
+            -> values and where to find them (DID Device id -> written on the data logger of the console)
+    - besonderheiten
+        - hidden files
+            .remaining_gaps
+	        .cmd_history
+        - wind direction in letters and not in numbers
+            download files use letters too
+        - Zeit CET ohne DST
+    - nicht doc-string dokumentiertes
+
+
+Workflow:
+- (fetch --all --prune)
+- getting ready for developing something new
+- create branch from main or switch to branch
+- pulling (if switched to branch)
+- git secret reveal
+- developing
+- git secret hide
+- commit if finished
+- push and merge (pull request on github)
+

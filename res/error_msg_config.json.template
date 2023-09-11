@@ -79,7 +79,7 @@
             "active": false,
             "emails": [],
             "text_de": {
-                "description": "Beschreibung: Die Daten, die von der Wetterstation gesendet wurden sind nicht vollst\u00e4ndig.<br>Folgende Daten fehlen:",
+                "description": "Die Daten, die von der Wetterstation gesendet wurden sind nicht vollst\u00e4ndig.<br>Folgende Daten fehlen:",
                 "suggested_solution": "\u00dcberpr\u00fcfen Sie die Verbindungen zwischen der Wetterstation und den jeweiligen Messger\u00e4ten sowie die Verbindung zwischen der Wetterstation und der Konsole. Es könnten Marderschäden aufgetreten sein.",
                 "warning": [
                     "Achtung!:",
