@@ -89,4 +89,9 @@ def extract_range(file_name : str):
             end = current_date
         case '1 Year':
             end = start.replace(year = start.year + 1)
+    
+    # prevent looking into the future
+    if end > datetime.now():
+        end = datetime.now()
+        end = end.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo = None)
     return (start, end)
