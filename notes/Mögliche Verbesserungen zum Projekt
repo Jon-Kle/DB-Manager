@@ -1,0 +1,15 @@
+Mögliche Verbesserungen zum Projekt
+
+Website
+- darstellung verbessern? -> herum experimentieren
+- slider für Daten bereich?
+- smooth loading of the data -> caching
+- wind Richtung
+- Tabellen ansicht mit Pfeilen darstellen (großes Vorhaben)
+- Download in csv-Datei Form
+- Links zu Website über das Projekt
+- Link zu globalem hub für andere Projekte
+
+DB-Manager
+- do-config reparieren
+- email worker

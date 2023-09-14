@@ -1,0 +1,20 @@
+update website:
+
+go into wetter folder
+git fetch
+git pull
+possibly update config files manualy
+restart apache
+make sure browser does not have website cached (hard reload)
+
+update DB-Manager:
+
+go into DB-Manager folder
+git fetch
+git pull
+update config file changes
+restart DB-Manager
+	- attach to tmux session with "sudo tmux a"
+	- restart DB-Manager with "restart"
+	- detach from tmux session with "ctrl-B D" (!!don't exit tmux, this will close the session!!)
+	

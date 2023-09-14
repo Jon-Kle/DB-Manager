@@ -1,0 +1,60 @@
+how to document the code
+
+Beispiel class docstring
+
+class Example:
+	'''
+	This class does/represents/handles ...
+
+			Attributes
+			----------
+			variable1: str
+					first example input
+			variable2: int
+					number of cows in Scotland
+
+			Methods
+			-------
+			__init__():
+					Reads file which contains variable2
+			set(name: str, val: int, debug=False):
+					Sets the variable with the given name to val
+			get():
+					Print all values of the object
+	'''
+
+simple_func():
+	'''find a way to timetravel'''
+
+set(name: str, val: int, debug=False):
+	'''
+	Set the variable with the given name to val.
+
+			Parameters:
+					name (str): name of variable of which the value should be changed
+					val (int): new value to which the selected variable should be changed
+					debug (bool): determins if debug info gets printed And this is just
+						a verry long explanation to show how to handle multiple line long
+						explanations.
+
+			Returns:
+					result: 0 if successfull, else 1
+
+			Exceptions:
+					ExampleError
+	'''
+
+Parameters, Returns, Exceptions is not necessary if there are no exceptions, return values or parameters
+
+returns:
+		[(value: str, status: int), ...]
+
+do_start(self, arg): # cli function
+	'''Start counter'''
+
+__init__() functions dont need to be documented, only if they do something that is important to know
+
+type hinting is advised
+
+
+

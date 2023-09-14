@@ -1,0 +1,80 @@
+1. neu schreiben des OS per Raspberry Pi Imager
+	- Raspberry Pi OS (Lite) 64 bit
+	- ssh sofort einrichten
+2. Rpi neu starten
+	- lan scan to see if ip is the same
+	- rpi-lan aus ~/.ssh/known_hosts entfernen
+	- ssh verbindung anfragen und fingerprint zustimmen
+	- wlan country via sudo raspi-config
+3. Cronjobs
+	- 1. Tag jedes 2. Monats
+	- sudo crontab -e -> nano
+	- 15 0 0 */2 * sudo reboot
+4. Install ExFAT drivers
+	- dpkg --get-selection
+	- sudo apt update
+	- sudo apt upgrade
+	- mount usb drive if necessary
+5. install database
+	- sudo apt install mariadb-server
+	- mysql_secure_installation
+	- sudo mysql -u root -p -> root
+6. install apache2
+	- sudo apt install apache2 -y
+	- check via browser
+7. install php
+	- sudo apt install php -y
+	- cd /var/www/html
+	- sudo nano -> <?php echo "hello world!"; ?> -> write to index.php
+	- check via browser
+8. install phpmyadmin
+	- sudo apt install phpmyadmin -y
+	- dont configure via mysql-common
+	- sudo ln -s /usr/share/phpmyadmin /var/www/html/phpmyadmin
+	- sudo service apache2 restart
+	- remove sudo requirement for login to database
+		https://stackoverflow.com/questions/37239970/connect-to-mysql-server-without-sudo
+	- check via browser
+9. configure database
+	- using phpmyadmin
+	- select setup.sql file
+	- import
+	- check
+10. install newer python
+	- install libssl-dev -> ssl.h file in /usr/include/openssl
+	- download file for python3.11.4
+	- ./configuration --enable-optimizations
+	- sudo make installation
+	- dont create links! they are already created
+	- install python3-pip ?
+	- pip3 install --upgrade pip
+11. install git and clone repo
+	- sudo apt install git
+	- git clone https://github.com/Jon-Kle/DB-Manager.git
+12. start DB-Manager with python3.11
+	- use nano to change 3 configuration files
+	- change path variable
+	- install dependencies -> target=/bin/local/lib/python3.11
+	- run: sudo python3 src/main.py
+
+dependencies: pymysql, requests
+
+readline not available!!
+gnureadline nope! <- install libncurses5-dev nope!
+sudo apt-get install libreadline-dev nope?
+-> commented all readline occurrences
+√√√
+
+switch branch to no-readline
+
+13. tmux
+	- sudo apt install tmux
+	- tmux (to start a session)
+	- sudo python3 src/main.py
+	- CTRL+B D (detach from session)
+
+14. handling of reboots
+	- tmux new-session -d -c /home/DB-Manager -s DB-Manager sudo python3 src/main.py
+	-> into /etc/rc.local
+	- backup nicht vergessen!
+	- sudo tmux attach -> view termux session

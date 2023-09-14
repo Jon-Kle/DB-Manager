@@ -1,0 +1,53 @@
+
+added newline in database command option string
+smal fix variable name correction
+reversed formating of information strings
+if .remaining_gaps file is empty, Error in get_gaps when trying to read file √
+
+
+
+testing
+
+die Downloads stimmen mit den angezeigten Daten überein
+
+1h
+	:00 -> :00 :30 :00
+	:15	-> :30 :00
+	:30	-> :30 :00 :30
+	:45 -> :00 :30
+4h
+	0:00 -> 0:00 - 4:00
+	0:15 -> 0:30 - 4:00
+	0:30 -> 0:30 - 4:30
+	0:45 -> 1:00 - 4:30
+	1:00 -> 1:00 - 5:00
+8h
+	same as 4h just with 8h
+12h
+	same as 4h just with 12h
+1d
+	-> keine Zeit auswahl mehr
+	1. 00:00 -> 2. 00:00
+3d
+	same as 1d just with 3d
+	1. -> 4.
+1w
+	1. -> 8.
+2w
+	1. -> 15.
+	27/31 -> 10. 
+1m
+	1.3. -> 1.4.
+	2.3. -> 2.4.
+	30.3. -> 30.4.
+	31.3. -> 1.5.
+	1.4. -> 1.5.
+3m
+	same as 1m just with 3m
+6m
+	same as 1m just with 6m
+1y
+	1.1.20 -> 1.1.21
+	2.1.20 -> 2.1.21
+	31.1.20 -> 31.1.21
+	31.12.19 -> 31.12.20
